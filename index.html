@@ -181,6 +181,7 @@
   .c-stat{text-align:right;font-family:var(--mono);white-space:nowrap}
   .c-checked{font-family:var(--mono);font-size:.84rem;color:var(--muted);white-space:nowrap}
   .c-link,.c-act{text-align:center;white-space:nowrap}
+  .row-refresh{margin-right:.35rem;vertical-align:middle}
   .na{color:var(--faint)}
 
   .cell-input{
@@ -298,7 +299,7 @@
       <button class="btn btn-primary" type="submit">+ Add</button>
     </form>
     <div class="toolbar">
-      <button class="btn btn-update" id="update-btn">Update Stats</button>
+      <button class="btn btn-update" id="update-btn" title="Refresh all targets in one batched request">Global Refresh</button>
       <span id="update-status" class="update-status"></span>
       <span class="spacer"></span>
       <input id="filter-input" class="input input-filter" placeholder="Filter…" spellcheck="false">
@@ -474,7 +475,7 @@
     render();
     if(targets.length === 0){
       const nm = who ? who.split(' [')[0] : '';
-      toast('You’re in' + (nm ? (', ' + nm) : '') + '! This is your hit list. Add a target with “+ Add”, then hit Update Stats.', 'ok');
+      toast('You’re in' + (nm ? (', ' + nm) : '') + '! This is your hit list. Add a target with “+ Add”, then hit Global Refresh.', 'ok');
     }
     maybeOfferTargetsJson();
   }
@@ -559,11 +560,31 @@
   }
   function handleStatsError(err){ const m = errToMsg(err); setUpdateStatus(m); toast(m, 'err'); }
 
+  // Refresh ONE target: a single request for a single ID, still governed by the
+  // shared 20/min rate limiter. (Batched "Global Refresh" is cheaper per target.)
+  async function refreshOne(t){
+    if(t._busy) return;
+    const id = extractId(t.name);
+    if(id == null){ toast('This row has no valid target ID.', 'err'); return; }
+    if(!statsKey()){ toast('No verified key found — log out and sign in again.', 'err'); return; }
+    t._busy = true; render();
+    try {
+      await rateGate();
+      applyStats(await fetchChunk([id]));
+      saveTargets();
+      toast('Refreshed ' + t.name + '.', 'ok');
+    } catch(err){
+      handleStatsError(err);
+    } finally {
+      delete t._busy; render();
+    }
+  }
+
   function setUpdating(on){
     const btn = $('#update-btn');
     btn.disabled = on || cooling;
     btn.classList.toggle('loading', on);
-    btn.textContent = on ? 'Updating…' : 'Update Stats';
+    btn.textContent = on ? 'Updating…' : 'Global Refresh';
   }
   function setUpdateStatus(s){ $('#update-status').textContent = s || ''; }
   function startCooldown(){
@@ -574,7 +595,7 @@
     btn.disabled = true; btn.textContent = 'Cooldown ' + left + 's';
     const iv = setInterval(() => {
       left--;
-      if(left <= 0){ clearInterval(iv); cooling = false; btn.disabled = false; btn.textContent = 'Update Stats'; }
+      if(left <= 0){ clearInterval(iv); cooling = false; btn.disabled = false; btn.textContent = 'Global Refresh'; }
       else btn.textContent = 'Cooldown ' + left + 's';
     }, 1000);
   }
@@ -727,8 +748,15 @@
     tdAtk.appendChild(linkEl(id != null ? ('https://www.torn.com/page.php?sid=attack&user2ID=' + id) : null, 'Attack', 'link-attack'));
     tr.appendChild(tdAtk);
 
-    // Delete
+    // Refresh (this target only) + Delete
     const tdAct = document.createElement('td'); tdAct.className = 'c-act';
+    const ref = document.createElement('button');
+    ref.className = 'btn btn-small row-refresh';
+    ref.textContent = t._busy ? '…' : 'Refresh';
+    ref.disabled = !!t._busy;
+    ref.title = 'Refresh just this target (1 API request)';
+    ref.addEventListener('click', () => refreshOne(t));
+    tdAct.appendChild(ref);
     const del = document.createElement('button');
     del.className = 'icon-btn danger'; del.title = 'Remove target'; del.setAttribute('aria-label', 'Remove target'); del.textContent = '✕';
     del.addEventListener('click', () => { if(confirm('Remove ' + t.name + '?')) removeTarget(t); });
@@ -751,7 +779,7 @@
       const tr = document.createElement('tr'); tr.className = 'empty-row';
       const td = document.createElement('td'); td.colSpan = 7;
       td.textContent = targets.length === 0
-        ? '✓ You’re in — this is your hit list, and it’s empty. Add your first target with the “+ Add” box above (e.g. Frenemy [3981563]), then click “Update Stats”. You don’t need to open Settings.'
+        ? '✓ You’re in — this is your hit list, and it’s empty. Add your first target with the “+ Add” box above (e.g. Frenemy [3981563]), then click “Global Refresh” to pull stats.'
         : 'No targets match your filter.';
       tr.appendChild(td); tbody.appendChild(tr);
       return;
