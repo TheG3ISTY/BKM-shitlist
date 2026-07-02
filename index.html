@@ -204,6 +204,14 @@
   .link-profile:hover{background:rgba(125,211,252,.12);border-color:rgba(125,211,252,.4)}
   .link-attack{color:#fda4af}
   .link-attack:hover{background:rgba(251,113,133,.12);border-color:rgba(251,113,133,.45)}
+  .attack-warn{color:var(--warn);border-color:rgba(251,191,36,.5);opacity:.9}
+  .attack-warn:hover{background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.6)}
+  .c-status{white-space:nowrap;font-size:.85rem}
+  .st-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:.4rem;vertical-align:baseline}
+  .st-green{background:var(--ok)}
+  .st-red{background:var(--danger)}
+  .st-blue{background:#60a5fa}
+  .st-gray,.st-{background:var(--faint)}
   .empty-row td{text-align:center;color:var(--muted);padding:2.2rem 1rem !important}
 
   .appfoot{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-top:.9rem;font-size:.8rem;color:var(--faint)}
@@ -310,6 +318,7 @@
           <th>Why</th>
           <th data-sort="stat" class="th-sort num">Stat Estimate <span class="sort-ind"></span></th>
           <th data-sort="checked" class="th-sort">Checked When <span class="sort-ind"></span></th>
+          <th>Status</th>
           <th>Profile</th>
           <th>Attack</th>
           <th aria-label="Actions"></th>
@@ -340,9 +349,10 @@
   const SHEET_API = 'https://script.google.com/macros/s/AKfycbwNqeGM6Q5Z11oqOl-Itc3selmQnv6PB5pNt6dixEvFwRxaKrRgK4JJCoGMx58tdxYh8A/exec';
   const CHUNK_SIZE = 200;          // FFScouter allows up to 205 IDs / request
   const CHUNK_SPACING_MS = 3500;   // spacing when chunking -> well under 20/min
-  const RATE_MAX = 20;             // hard cap: 20 requests / 60s / IP
+  const RATE_MAX = 20;             // hard cap: 20 requests / 60s / IP (FFScouter)
   const RATE_WINDOW_MS = 60000;
   const COOLDOWN_MS = 4000;        // visible post-update button cooldown
+  const TORN_MAX = 80;             // Torn API allows 100/min per key — stay safely under (status checks)
 
   const LS = {
     key:'bk_hitlist_key', verified:'bk_hitlist_verified', user:'bk_hitlist_user',
@@ -358,6 +368,9 @@
   let cooling = false;
   let syncing = false;
   let mayRemove = false;   // set by the server (caller's faction position); gates the delete button
+  let syncCount = 0;       // outstanding background operations (drives the syncing badge)
+  const statusById = new Map();   // id -> { state, color, description, until, at } — live Torn status (ephemeral, not shared)
+  const statusInFlight = new Set();
 
   /* ===================== Small helpers ===================== */
   const $ = s => document.querySelector(s);
@@ -417,7 +430,7 @@
   function saveTargets(){ lsSet(LS.targets, JSON.stringify(targets.map(exportTarget))); }
 
   /* ===================== Shared list (Google Sheet backend) ===================== */
-  function setSync(on){ syncing = on; const b = $('#sync-badge'); if(b) b.hidden = !on; }
+  function setSync(on){ syncCount = Math.max(0, syncCount + (on ? 1 : -1)); syncing = syncCount > 0; const b = $('#sync-badge'); if(b) b.hidden = !syncing; }
   // The server reports (per your faction position) whether you may remove targets.
   function noteRole(data){ if(data && typeof data.mayRemove === 'boolean'){ mayRemove = data.mayRemove; lsSet(LS.mayRemove, mayRemove ? '1' : '0'); } }
 
@@ -478,8 +491,10 @@
     try {
       const data = await sheetCall('list');
       noteRole(data);
-      if(data.ok && Array.isArray(data.targets)) applyServerTargets(data.targets);
-      else if(!data.ok) toast(sheetErrMsg(data.error), 'err');
+      if(data.ok && Array.isArray(data.targets)){
+        applyServerTargets(data.targets);
+        refreshStatuses(targets.map(t => extractId(t.name)).filter(x => x != null));   // live status, background
+      } else if(!data.ok) toast(sheetErrMsg(data.error), 'err');
     } catch(err){
       handleSheetError(err, 'Couldn’t load the shared list.');
     } finally { setSync(false); }
@@ -571,6 +586,53 @@
     reqTimes.push(Date.now());
   }
 
+  /* ---- Live Torn status (Okay / Traveling / Hospital / Jail …). Fetched fresh, never shared. ---- */
+  const tornTimes = [];
+  async function tornGate(){
+    const now = Date.now();
+    while(tornTimes.length && now - tornTimes[0] > RATE_WINDOW_MS) tornTimes.shift();
+    if(tornTimes.length >= TORN_MAX){ await sleep(RATE_WINDOW_MS - (now - tornTimes[0]) + 50); return tornGate(); }
+    tornTimes.push(Date.now());
+  }
+  async function fetchTornStatus(id){
+    const res = await fetch('https://api.torn.com/user/' + id + '?selections=basic&key=' + encodeURIComponent(statsKey()) + '&comment=BKMStatus');
+    const data = await res.json();
+    if(data && data.error) throw tagged('torn', { detail: (data.error.error || 'error') });
+    return data && data.status ? data.status : null;
+  }
+  // Refresh live status for the given ids (rate-limited; table updates as each arrives).
+  async function refreshStatuses(ids){
+    const todo = [...new Set(ids)].filter(id => id != null && !statusInFlight.has(id));
+    if(todo.length === 0) return;
+    todo.forEach(id => statusInFlight.add(id));
+    setSync(true);
+    try {
+      for(const id of todo){
+        try {
+          await tornGate();
+          const s = await fetchTornStatus(id);
+          statusById.set(id, s
+            ? { state: s.state || '?', color: s.color || '', description: s.description || '', until: s.until || 0, at: Date.now() }
+            : { state: '?', color: '', description: '', until: 0, at: Date.now() });
+        } catch(e){ /* keep any prior status; one failure shouldn't abort the batch */ }
+        render();
+      }
+    } finally {
+      todo.forEach(id => statusInFlight.delete(id));
+      setSync(false);
+    }
+  }
+  function statusLabel(s){
+    let label = s.state || '?';
+    if((s.state === 'Hospital' || s.state === 'Jail' || s.state === 'Federal') && s.until){
+      const mins = Math.round((s.until * 1000 - Date.now()) / 60000);
+      if(mins > 0) label += ' ' + fmtDur(mins);
+    }
+    return label;
+  }
+  function fmtDur(mins){ return mins >= 60 ? (Math.floor(mins / 60) + 'h' + (mins % 60) + 'm') : (mins + 'm'); }
+  function fmtClock(ms){ const d = new Date(ms); return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
+
   function tagged(kind, extra){ const e = new Error(kind); e.kind = kind; if(extra) Object.assign(e, extra); return e; }
 
   async function fetchChunk(ids){
@@ -616,6 +678,7 @@
       const arr = await fetchChunk([id]);
       const byId = new Map(arr.filter(o => o && o.player_id != null).map(o => [Number(o.player_id), o]));
       await mutate('setStats', { stats: [ toStatEntry(id, byId.get(id) || null, fmtNow()) ] });
+      refreshStatuses([id]);   // also refresh this target's live status
       toast('Refreshed ' + t.name + '.', 'ok');
     } catch(err){
       handleStatsError(err);
@@ -677,6 +740,7 @@
     setUpdateStatus('Saving to the shared list…');
     const data = await mutate('setStats', { stats });   // writes to the Sheet, re-renders from truth
     setUpdating(false);
+    refreshStatuses(ids);   // also refresh live Torn status (background)
     if(data.ok) {
       setUpdateStatus(`Updated ${stats.length} of ${ids.length} target${ids.length === 1 ? '' : 's'} · ${now}`);
       toast(`Stats updated for ${stats.length} target${stats.length === 1 ? '' : 's'}.`, 'ok');
@@ -803,13 +867,32 @@
     tdChk.appendChild(cs);
     tr.appendChild(tdChk);
 
+    // Live Torn status
+    const st = (id != null) ? statusById.get(id) : null;
+    const tdStatus = document.createElement('td'); tdStatus.className = 'c-status';
+    if(st){
+      const dot = document.createElement('span'); dot.className = 'st-dot st-' + (st.color || 'gray');
+      const lbl = document.createElement('span'); lbl.textContent = statusLabel(st);
+      tdStatus.appendChild(dot); tdStatus.appendChild(lbl);
+      tdStatus.title = (st.description || st.state || '') + (st.at ? (' — as of ' + fmtClock(st.at)) : '');
+    } else {
+      const dash = document.createElement('span'); dash.className = 'na'; dash.textContent = '—'; tdStatus.appendChild(dash);
+    }
+    tr.appendChild(tdStatus);
+
     // Profile / Attack links
     const tdProf = document.createElement('td'); tdProf.className = 'c-link';
     tdProf.appendChild(linkEl(id != null ? ('https://www.torn.com/profiles.php?XID=' + id) : null, 'Profile', 'link-profile'));
     tr.appendChild(tdProf);
 
     const tdAtk = document.createElement('td'); tdAtk.className = 'c-link';
-    tdAtk.appendChild(linkEl(id != null ? ('https://www.torn.com/page.php?sid=attack&user2ID=' + id) : null, 'Attack', 'link-attack'));
+    const atk = linkEl(id != null ? ('https://www.torn.com/page.php?sid=attack&user2ID=' + id) : null, 'Attack', 'link-attack');
+    if(id != null && st && st.state && st.state !== 'Okay' && st.state !== '?'){
+      atk.classList.add('attack-warn');
+      atk.textContent = '⚠ Attack';
+      atk.title = 'Target is ' + statusLabel(st) + ' — may not be attackable (as of ' + fmtClock(st.at) + ')';
+    }
+    tdAtk.appendChild(atk);
     tr.appendChild(tdAtk);
 
     // Refresh (this target only) + Delete
@@ -843,7 +926,7 @@
 
     if(list.length === 0){
       const tr = document.createElement('tr'); tr.className = 'empty-row';
-      const td = document.createElement('td'); td.colSpan = 7;
+      const td = document.createElement('td'); td.colSpan = 8;
       td.textContent = targets.length === 0
         ? '✓ You’re in. The shared faction list is empty — add a target with the “+ Add” box above (e.g. Frenemy [3981563]) and everyone will see it, then hit “Global Refresh” for stats.'
         : 'No targets match your filter.';
