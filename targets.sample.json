@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "faction_id": 56875,
+  "exported_at": "30.06.2026 14:32",
+  "targets": [
+    {
+      "name": "Frenemyx [3981563]",
+      "why": "Retal target — hit me first, low respect anyway",
+      "statEstimate": 2989886000,
+      "statHuman": "2.99b",
+      "checkedAt": "30.06.2026 14:32"
+    },
+    {
+      "name": "SoftServe [267456763]",
+      "why": "Low FF, easy chain filler",
+      "statEstimate": 1250000,
+      "statHuman": "1.25m",
+      "checkedAt": "30.06.2026 14:31"
+    },
+    {
+      "name": "Ghosted [142625381]",
+      "why": "No estimate available yet — stats hidden",
+      "statEstimate": null,
+      "statHuman": null,
+      "checkedAt": "30.06.2026 14:31"
+    },
+    {
+      "name": "FreshAdd [1]",
+      "why": "",
+      "statEstimate": null,
+      "statHuman": null,
+      "checkedAt": null
+    }
+  ]
+}

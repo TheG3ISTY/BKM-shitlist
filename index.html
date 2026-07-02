@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boykisser Meetup — Hit List</title>
+<style>
+  /* ===== Theme ===== */
+  :root{
+    --bg:#0b0d13;
+    --bg-glow:#16101c;
+    --surface:#13161f;
+    --surface-2:#1a1e2a;
+    --surface-3:#222736;
+    --border:#2a3040;
+    --border-2:#343b4f;
+    --text:#e8eaf0;
+    --muted:#9aa3b8;
+    --faint:#6b7488;
+    --accent:#f472b6;     /* pink */
+    --accent-2:#c084fc;   /* purple */
+    --link:#7dd3fc;       /* sky */
+    --danger:#fb7185;
+    --ok:#34d399;
+    --warn:#fbbf24;
+    --radius:12px;
+    --radius-sm:9px;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --shadow:0 10px 30px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:var(--sans);
+    color:var(--text);
+    background:
+      radial-gradient(1100px 600px at 85% -10%, rgba(192,132,252,.10), transparent 60%),
+      radial-gradient(900px 500px at 0% 0%, rgba(244,114,182,.08), transparent 55%),
+      var(--bg);
+    -webkit-font-smoothing:antialiased;
+    line-height:1.45;
+  }
+  a{color:var(--link)}
+  code{font-family:var(--mono);background:var(--surface-2);border:1px solid var(--border);padding:.05em .4em;border-radius:6px;font-size:.9em}
+  .muted{color:var(--muted)}
+  .small{font-size:.82rem}
+  .spacer{flex:1 1 auto}
+
+  /* ===== Inputs & buttons ===== */
+  .input{
+    width:100%;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:.6rem .7rem;
+    border-radius:var(--radius-sm);
+    font-size:.95rem;
+    outline:none;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .input::placeholder{color:var(--faint)}
+  .input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(244,114,182,.18)}
+  .input.mono{font-family:var(--mono);font-size:.88rem}
+  .field-label{display:block;font-size:.8rem;color:var(--muted);margin:.6rem 0 .3rem;letter-spacing:.02em;text-transform:uppercase}
+  .checkline{display:inline-flex;align-items:center;gap:.45rem;color:var(--muted);font-size:.88rem;cursor:pointer;user-select:none}
+  .checkline input{accent-color:var(--accent)}
+
+  .btn{
+    appearance:none;
+    background:var(--surface-2);
+    color:var(--text);
+    border:1px solid var(--border-2);
+    padding:.55rem .85rem;
+    border-radius:var(--radius-sm);
+    font-size:.9rem;
+    font-weight:600;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:background .15s, border-color .15s, transform .05s, opacity .15s;
+  }
+  .btn:hover{background:var(--surface-3);border-color:var(--border-2)}
+  .btn:active{transform:translateY(1px)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .btn-primary{
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    border-color:transparent;color:#1a1020;
+  }
+  .btn-primary:hover{filter:brightness(1.07);background:linear-gradient(135deg,var(--accent),var(--accent-2))}
+  .btn-block{width:100%;margin-top:.9rem;padding:.7rem}
+  .btn-small{padding:.35rem .6rem;font-size:.82rem}
+  .btn-ghost-danger{border-color:transparent;color:var(--danger);background:transparent}
+  .btn-ghost-danger:hover{background:rgba(251,113,133,.12)}
+  .btn-update{
+    background:linear-gradient(135deg,#34d399,#22d3ee);
+    border-color:transparent;color:#06281f;min-width:150px;
+  }
+  .btn-update:hover{filter:brightness(1.06);background:linear-gradient(135deg,#34d399,#22d3ee)}
+  .btn-update.loading{position:relative}
+  .icon-btn{
+    background:transparent;border:1px solid transparent;color:var(--muted);
+    width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:1rem;line-height:1;display:inline-flex;align-items:center;justify-content:center;
+  }
+  .icon-btn:hover{background:var(--surface-3);color:var(--text)}
+  .icon-btn.danger:hover{background:rgba(251,113,133,.15);color:var(--danger)}
+
+  .badge{
+    display:inline-block;font-family:var(--mono);font-size:.62em;font-weight:700;
+    background:rgba(244,114,182,.16);color:var(--accent);
+    border:1px solid rgba(244,114,182,.35);
+    padding:.15em .45em;border-radius:6px;vertical-align:middle;margin-left:.45em;letter-spacing:.03em;
+  }
+  .brand-mark{font-size:1.4rem;filter:drop-shadow(0 0 8px rgba(244,114,182,.4))}
+
+  /* ===== Gate ===== */
+  .gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.2rem}
+  .gate-card{
+    width:100%;max-width:440px;background:var(--surface);
+    border:1px solid var(--border);border-radius:16px;padding:1.6rem;box-shadow:var(--shadow);
+  }
+  .brand{display:flex;align-items:center;gap:.6rem}
+  .brand h1{font-size:1.35rem;margin:0;font-weight:800;letter-spacing:-.01em}
+  .gate-sub{color:var(--muted);margin:.25rem 0 1.1rem;font-size:.92rem}
+  .gate-error{color:var(--danger);font-size:.88rem;min-height:1.2em;margin:.7rem 0 0;font-weight:600}
+  .gate-note{margin-top:1.2rem;padding-top:1.1rem;border-top:1px solid var(--border)}
+  .gate-note p{margin:.5rem 0;font-size:.84rem;color:var(--muted)}
+  .gate-note strong{color:var(--text)}
+
+  /* ===== App layout ===== */
+  #app{max-width:1180px;margin:0 auto;padding:1.1rem 1.1rem 3rem}
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+    padding:.4rem 0 1rem;border-bottom:1px solid var(--border);margin-bottom:1rem;
+  }
+  .topbar-left{display:flex;align-items:center;gap:.7rem}
+  .app-title{font-size:1.18rem;font-weight:800;letter-spacing:-.01em}
+  .whoami{font-size:.78rem;color:var(--ok);font-family:var(--mono)}
+  .topbar-right{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+
+  .banner{
+    display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+    background:linear-gradient(180deg,rgba(192,132,252,.10),rgba(192,132,252,.04));
+    border:1px solid rgba(192,132,252,.35);border-radius:var(--radius);
+    padding:.7rem .9rem;margin-bottom:1rem;font-size:.9rem;
+  }
+  .banner-actions{display:flex;gap:.5rem}
+
+  .controls{margin-bottom:1rem}
+  .add-form{display:flex;gap:.6rem}
+  .add-form .input{flex:1 1 auto}
+  .toolbar{display:flex;align-items:center;gap:.8rem;margin-top:.8rem;flex-wrap:wrap}
+  .update-status{font-size:.83rem;color:var(--muted);min-height:1.2em;max-width:560px}
+  .input-filter{width:180px}
+  .add-error{color:var(--danger);font-size:.84rem;min-height:1.1em;margin:.5rem 0 0;font-weight:600}
+
+  /* ===== Table ===== */
+  .table-wrap{
+    border:1px solid var(--border);border-radius:var(--radius);overflow:auto;background:var(--surface);
+  }
+  table.targets{width:100%;border-collapse:collapse;font-size:.92rem;min-width:820px}
+  table.targets thead th{
+    position:sticky;top:0;z-index:1;
+    background:var(--surface-2);
+    text-align:left;font-weight:700;font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+    padding:.7rem .8rem;border-bottom:1px solid var(--border);white-space:nowrap;
+  }
+  table.targets th.num{text-align:right}
+  .th-sort{cursor:pointer;user-select:none}
+  .th-sort:hover{color:var(--text)}
+  .th-sort.sorted{color:var(--accent)}
+  .sort-ind{font-size:.7em;margin-left:.25em}
+  table.targets tbody td{padding:.35rem .55rem;border-bottom:1px solid var(--border);vertical-align:middle}
+  table.targets tbody tr:hover{background:rgba(255,255,255,.025)}
+  table.targets tbody tr:last-child td{border-bottom:none}
+  .c-name{min-width:230px}
+  .c-why{min-width:180px}
+  .c-stat{text-align:right;font-family:var(--mono);white-space:nowrap}
+  .c-checked{font-family:var(--mono);font-size:.84rem;color:var(--muted);white-space:nowrap}
+  .c-link,.c-act{text-align:center;white-space:nowrap}
+  .na{color:var(--faint)}
+
+  .cell-input{
+    width:100%;background:transparent;border:1px solid transparent;color:var(--text);
+    padding:.4rem .45rem;border-radius:7px;font-size:.92rem;font-family:inherit;outline:none;transition:background .12s,border-color .12s;
+  }
+  .cell-input:hover{background:var(--surface-2)}
+  .cell-input:focus{background:var(--surface-2);border-color:var(--accent)}
+  .id-chip{
+    display:inline-block;font-family:var(--mono);font-size:.68rem;color:var(--faint);
+    margin-left:.45rem;padding:.05em .35em;border:1px solid var(--border);border-radius:5px;
+  }
+  .row-link{
+    display:inline-block;text-decoration:none;font-weight:600;font-size:.82rem;
+    padding:.3rem .6rem;border-radius:7px;border:1px solid var(--border);
+  }
+  .link-profile{color:var(--link)}
+  .link-profile:hover{background:rgba(125,211,252,.12);border-color:rgba(125,211,252,.4)}
+  .link-attack{color:#fda4af}
+  .link-attack:hover{background:rgba(251,113,133,.12);border-color:rgba(251,113,133,.45)}
+  .empty-row td{text-align:center;color:var(--muted);padding:2.2rem 1rem !important}
+
+  .appfoot{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-top:.9rem;font-size:.8rem;color:var(--faint)}
+  .count{color:var(--muted)}
+
+  /* ===== Modal ===== */
+  .modal{position:fixed;inset:0;background:rgba(5,6,10,.66);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:1.2rem;z-index:50}
+  .modal-card{width:100%;max-width:560px;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);max-height:90vh;overflow:auto}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.2rem;border-bottom:1px solid var(--border)}
+  .modal-head h2{margin:0;font-size:1.1rem}
+  .modal-body{padding:1.2rem}
+  .help{font-size:.8rem;color:var(--muted);margin:.4rem 0 1rem}
+  .set-actions{display:flex;align-items:center;gap:.5rem;margin-top:1.2rem;flex-wrap:wrap}
+  .test-out{font-family:var(--mono);font-size:.8rem;margin:.9rem 0 0;min-height:1.1em;word-break:break-word;color:var(--muted)}
+  .test-out.ok{color:var(--ok)}
+  .test-out.err{color:var(--danger)}
+
+  /* ===== Toast ===== */
+  #toast{
+    position:fixed;left:50%;bottom:1.4rem;transform:translate(-50%,200%);
+    background:var(--surface-3);border:1px solid var(--border-2);color:var(--text);
+    padding:.7rem 1rem;border-radius:10px;box-shadow:var(--shadow);font-size:.88rem;font-weight:600;
+    max-width:min(620px,92vw);transition:transform .28s cubic-bezier(.2,.8,.2,1);z-index:60;
+  }
+  #toast.show{transform:translate(-50%,0)}
+  #toast.ok{border-color:rgba(52,211,153,.5)}
+  #toast.err{border-color:rgba(251,113,133,.55)}
+  #toast.warn{border-color:rgba(251,191,36,.5)}
+
+  @media (max-width:620px){
+    .topbar-right .btn{padding:.5rem .6rem}
+    .input-filter{width:120px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ ACCESS GATE ============ -->
+<section id="gate" class="gate" hidden>
+  <div class="gate-card">
+    <div class="brand"><span class="brand-mark">🎯</span><h1>Boykisser Meetup<span class="badge">#56875</span></h1></div>
+    <p class="gate-sub">Faction Hit List — members only</p>
+    <form id="gate-form" autocomplete="off">
+      <label class="field-label" for="gate-key">Your Torn API key</label>
+      <input id="gate-key" type="password" class="input" placeholder="Paste your Torn API key" autocomplete="off" spellcheck="false">
+      <div style="margin-top:.55rem"><label class="checkline"><input type="checkbox" id="gate-show"> Show key</label></div>
+      <button class="btn btn-primary btn-block" type="submit" id="gate-verify">Verify &amp; Enter</button>
+      <p id="gate-error" class="gate-error" role="alert"></p>
+    </form>
+    <div class="gate-note">
+      <p>🔒 A <strong>Public</strong> (limited/minimal) access key is enough — this only reads <em>your own</em> faction to confirm membership. You do <strong>not</strong> need to share a Full-access key.</p>
+      <p>Your key is stored only in this browser (localStorage) and is sent only to <code>api.torn.com</code>. <a id="gate-getkey-link" href="https://www.torn.com/preferences.php#tab=api" target="_blank" rel="noopener noreferrer">Get / manage a key →</a></p>
+      <p class="muted small">Heads up: this gate runs entirely in your browser and is <strong>not</strong> real access control — see the README.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ APP ============ -->
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="brand-mark">🎯</span>
+      <div>
+        <div class="app-title">Boykisser Meetup <span class="badge">#56875</span></div>
+        <div class="whoami" id="whoami"></div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="btn" id="settings-btn" title="Stats endpoint &amp; key">⚙ Settings</button>
+      <button class="btn" id="export-btn" title="Download targets.json">⬇ Export</button>
+      <button class="btn" id="import-btn" title="Load a targets JSON file">⬆ Import</button>
+      <input type="file" id="import-file" accept="application/json,.json" hidden>
+      <button class="btn btn-ghost-danger" id="logout-btn" title="Forget key &amp; lock">⎋ Log out</button>
+    </div>
+  </header>
+
+  <div id="json-banner" class="banner" hidden>
+    <span id="json-banner-text"></span>
+    <span class="banner-actions">
+      <button class="btn btn-small btn-primary" id="json-load">Load it</button>
+      <button class="btn btn-small" id="json-dismiss">Dismiss</button>
+    </span>
+  </div>
+
+  <section class="controls">
+    <form id="add-form" class="add-form" autocomplete="off">
+      <input id="add-input" class="input" placeholder="Add target — e.g. Frenemy [3981563]" spellcheck="false">
+      <button class="btn btn-primary" type="submit">+ Add</button>
+    </form>
+    <div class="toolbar">
+      <button class="btn btn-update" id="update-btn">Update Stats</button>
+      <span id="update-status" class="update-status"></span>
+      <span class="spacer"></span>
+      <input id="filter-input" class="input input-filter" placeholder="Filter…" spellcheck="false">
+      <label class="checkline"><input type="checkbox" id="human-toggle"> Human-readable</label>
+    </div>
+    <p id="add-error" class="add-error" role="alert"></p>
+  </section>
+
+  <div class="table-wrap">
+    <table class="targets">
+      <thead>
+        <tr>
+          <th data-sort="name" class="th-sort">Name <span class="sort-ind"></span></th>
+          <th>Why</th>
+          <th data-sort="stat" class="th-sort num">Stat Estimate <span class="sort-ind"></span></th>
+          <th data-sort="checked" class="th-sort">Checked When <span class="sort-ind"></span></th>
+          <th>Profile</th>
+          <th>Attack</th>
+          <th aria-label="Actions"></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <footer class="appfoot">
+    <span id="count" class="count"></span>
+    <span class="foot-note">Client-side gate only — not real access control. See README.</span>
+  </footer>
+</div>
+
+<!-- ============ SETTINGS MODAL ============ -->
+<div id="settings-modal" class="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="set-title">
+    <div class="modal-head">
+      <h2 id="set-title">⚙ Stats API Settings</h2>
+      <button class="icon-btn" id="set-cancel" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label" for="set-url">Stats endpoint URL template</label>
+      <input id="set-url" class="input mono" spellcheck="false">
+      <p class="help">Use <code>{KEY}</code> and <code>{IDS}</code> as placeholders. <code>{IDS}</code> is replaced with a comma-separated list of target IDs. The default is the FFScouter batch API.</p>
+
+      <label class="field-label" for="set-key">Stats API key</label>
+      <input id="set-key" class="input mono" type="text" spellcheck="false">
+      <p class="help">Leave blank to reuse your verified Torn key. Override only if your stats provider needs a different key.</p>
+
+      <div class="set-actions">
+        <button class="btn" id="set-test">Test endpoint</button>
+        <button class="btn" id="set-reset">Reset URL to default</button>
+        <span class="spacer"></span>
+        <button class="btn" id="set-cancel2">Cancel</button>
+        <button class="btn btn-primary" id="set-save">Save</button>
+      </div>
+      <p id="set-test-out" class="test-out"></p>
+      <p class="help small" style="margin-top:1rem">Rate limit: max <strong>20 requests/minute per IP</strong>. One “Update Stats” click is a single batched request (up to 200 IDs); larger lists are auto-chunked and spaced ~3.5s apart, and the button has a short cooldown so it can’t be spammed.</p>
+    </div>
+  </div>
+</div>
+
+<div id="toast" role="status"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ===================== Config ===================== */
+  const FACTION_ID = 56875;
+  const FACTION_NAME = 'Boykisser Meetup';
+  const DEFAULT_STATS_URL = 'https://ffscouter.com/api/v1/get-stats?key={KEY}&targets={IDS}';
+  const CHUNK_SIZE = 200;          // FFScouter allows up to 205 IDs / request
+  const CHUNK_SPACING_MS = 3500;   // spacing when chunking -> well under 20/min
+  const RATE_MAX = 20;             // hard cap: 20 requests / 60s / IP
+  const RATE_WINDOW_MS = 60000;
+  const COOLDOWN_MS = 4000;        // visible post-update button cooldown
+
+  const LS = {
+    key:'bk_hitlist_key', verified:'bk_hitlist_verified', user:'bk_hitlist_user',
+    targets:'bk_hitlist_targets', statsUrl:'bk_hitlist_stats_url', statsKey:'bk_hitlist_stats_key',
+    human:'bk_hitlist_human', offered:'bk_hitlist_offered_json', sort:'bk_hitlist_sort',
+  };
+
+  /* ===================== State ===================== */
+  let targets = [];
+  let sort = { col:'stat', dir:'asc' };   // default: softest (lowest) first
+  let displayHuman = false;
+  let filterText = '';
+  let cooling = false;
+  let pendingJson = null;
+
+  /* ===================== Small helpers ===================== */
+  const $ = s => document.querySelector(s);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const pad2 = n => String(n).padStart(2,'0');
+  const lsGet = k => { try { return localStorage.getItem(k); } catch(e){ return null; } };
+  const lsSet = (k,v) => { try { localStorage.setItem(k,v); } catch(e){} };
+  const lsDel = k => { try { localStorage.removeItem(k); } catch(e){} };
+
+  function fmtNow(d){ d = d || new Date();
+    return `${pad2(d.getDate())}.${pad2(d.getMonth()+1)}.${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  }
+  function parseTs(s){
+    if(!s) return null;
+    const m = /^(\d{2})\.(\d{2})\.(\d{4}) (\d{2}):(\d{2})$/.exec(s);
+    if(!m) return null;
+    return new Date(+m[3], +m[2]-1, +m[1], +m[4], +m[5]).getTime();
+  }
+  // The ID is ALWAYS derived from the name; never stored separately.
+  function extractId(name){ const m = /\[(\d+)\]/.exec(name || ''); return m ? Number(m[1]) : null; }
+  function maskKey(k){ if(!k) return ''; return k.length <= 4 ? '••••' : (k.slice(0,2)+'••••'+k.slice(-2)); }
+
+  let _toastT = null;
+  function toast(msg, kind){
+    const el = $('#toast'); el.textContent = msg; el.className = 'show ' + (kind || '');
+    clearTimeout(_toastT);
+    _toastT = setTimeout(() => { el.className = ''; }, kind === 'err' ? 7000 : 4000);
+  }
+
+  /* ===================== Target model ===================== */
+  function normalizeTarget(o){
+    if(!o || typeof o !== 'object') return null;
+    const name = typeof o.name === 'string' ? o.name.trim() : '';
+    if(!name) return null;
+    const stat = (typeof o.statEstimate === 'number' && isFinite(o.statEstimate)) ? o.statEstimate : null;
+    return {
+      name,
+      why: typeof o.why === 'string' ? o.why : '',
+      statEstimate: stat,
+      statHuman: typeof o.statHuman === 'string' ? o.statHuman : null,
+      checkedAt: typeof o.checkedAt === 'string' ? o.checkedAt : null,
+    };
+  }
+  function exportTarget(t){
+    return {
+      name: t.name,
+      why: t.why || '',
+      statEstimate: (typeof t.statEstimate === 'number') ? t.statEstimate : null,
+      statHuman: t.statHuman || null,
+      checkedAt: t.checkedAt || null,
+    };
+  }
+  function loadTargets(){
+    const raw = lsGet(LS.targets); if(!raw) return [];
+    try { const a = JSON.parse(raw); return Array.isArray(a) ? a.map(normalizeTarget).filter(Boolean) : []; }
+    catch(e){ return []; }
+  }
+  function saveTargets(){ lsSet(LS.targets, JSON.stringify(targets.map(exportTarget))); }
+  function dedupeById(list){
+    const seen = new Set(), out = [];
+    for(const t of list){
+      const id = extractId(t.name);
+      const k = id == null ? ('name:'+t.name) : ('id:'+id);
+      if(seen.has(k)) continue; seen.add(k); out.push(t);
+    }
+    return out;
+  }
+
+  function fmtStat(t){
+    if(t.statEstimate == null) return 'N/A';
+    if(displayHuman && t.statHuman) return t.statHuman;
+    return Number(t.statEstimate).toLocaleString('en-US');
+  }
+
+  /* ===================== Access gate ===================== */
+  function gateError(msg){ $('#gate-error').textContent = msg || ''; }
+  function gateBusy(on){ const b = $('#gate-verify'); b.disabled = on; b.textContent = on ? 'Verifying…' : 'Verify & Enter'; }
+
+  async function verifyKey(rawKey){
+    const key = (rawKey || '').trim();
+    gateError('');
+    if(!key){ gateError('Please paste your Torn API key.'); return; }
+    gateBusy(true);
+    let data;
+    try {
+      const res = await fetch(`https://api.torn.com/user/?selections=profile&key=${encodeURIComponent(key)}&comment=BoykisserHitList`);
+      data = await res.json();
+    } catch(e){
+      gateBusy(false);
+      gateError('Could not reach the Torn API (network or CORS). Check your connection and try again.');
+      return;
+    }
+    gateBusy(false);
+    if(!data || typeof data !== 'object'){ gateError('Unexpected response from the Torn API.'); return; }
+    // Torn returns HTTP 200 with an {error} object on bad keys.
+    if(data.error){ gateError('Invalid API key' + (data.error.error ? (' — ' + data.error.error) : '') + '.'); return; }
+    const fid = (data.faction && typeof data.faction.faction_id !== 'undefined') ? Number(data.faction.faction_id) : 0;
+    if(fid === FACTION_ID){
+      lsSet(LS.key, key);
+      lsSet(LS.verified, '1');
+      const who = (data.name ? data.name : 'Member') + (data.player_id ? (' [' + data.player_id + ']') : '');
+      lsSet(LS.user, who);
+      unlock();
+    } else {
+      gateError('Access denied: this tool is for ' + FACTION_NAME + ' [' + FACTION_ID + '] members only.');
+    }
+  }
+
+  function unlock(){
+    $('#gate').hidden = true;
+    $('#app').hidden = false;
+    const who = lsGet(LS.user) || '';
+    $('#whoami').textContent = who ? ('✓ Verified: ' + who) : '✓ Verified';
+    render();
+    maybeOfferTargetsJson();
+  }
+  function logout(){
+    // Clears the stored key + verified flag and returns to the gate. Keeps the target list & settings.
+    lsDel(LS.key); lsDel(LS.verified); lsDel(LS.user);
+    $('#app').hidden = true;
+    $('#gate').hidden = false;
+    $('#gate-key').value = '';
+    gateError('');
+  }
+
+  /* ===================== Stats endpoint ===================== */
+  function statsKey(){ const o = (lsGet(LS.statsKey) || '').trim(); return o || (lsGet(LS.key) || '').trim(); }
+  function statsUrlTemplate(){ return (lsGet(LS.statsUrl) || '').trim() || DEFAULT_STATS_URL; }
+
+  function buildStatsUrl(ids){
+    const idsStr = ids.join(',');   // digits + commas -> URL-safe, no encoding needed
+    const key = statsKey();
+    let url = statsUrlTemplate();
+    url = url.includes('{IDS}') ? url.split('{IDS}').join(idsStr)
+                                : url + (url.includes('?') ? '&' : '?') + 'targets=' + idsStr;
+    url = url.includes('{KEY}') ? url.split('{KEY}').join(key)
+                                : (/[?&]key=/.test(url) ? url : url + (url.includes('?') ? '&' : '?') + 'key=' + key);
+    return url;
+  }
+
+  // Hard rate limiter: never exceed 20 requests / 60s.
+  const reqTimes = [];
+  async function rateGate(){
+    const now = Date.now();
+    while(reqTimes.length && now - reqTimes[0] > RATE_WINDOW_MS) reqTimes.shift();
+    if(reqTimes.length >= RATE_MAX){
+      await sleep(RATE_WINDOW_MS - (now - reqTimes[0]) + 50);
+      return rateGate();
+    }
+    reqTimes.push(Date.now());
+  }
+
+  function tagged(kind, extra){ const e = new Error(kind); e.kind = kind; if(extra) Object.assign(e, extra); return e; }
+
+  async function fetchChunk(ids){
+    const url = buildStatsUrl(ids);
+    let res;
+    try { res = await fetch(url); }                 // simple GET -> no CORS preflight
+    catch(e){ throw tagged('cors'); }              // TypeError == CORS-blocked or offline
+    if(!res.ok){ let body=''; try { body = await res.text(); } catch(_){} throw tagged('http', { status: res.status, body }); }
+    let text; try { text = await res.text(); } catch(e){ throw tagged('read'); }
+    let data; try { data = JSON.parse(text); } catch(e){ throw tagged('json', { sample: text.slice(0,180) }); }
+    if(data && data.error){ throw tagged('api', { detail: (typeof data.error === 'object' ? (data.error.error || JSON.stringify(data.error)) : String(data.error)) }); }
+    if(!Array.isArray(data)){
+      if(data && Array.isArray(data.data)) return data.data;        // tolerate {data:[...]} wrappers
+      if(data && Array.isArray(data.results)) return data.results;
+      throw tagged('shape', { sample: text.slice(0,180) });
+    }
+    return data;
+  }
+
+  // Apply a stats array onto targets. Nulls are VALID -> "N/A", still stamps checkedAt.
+  function applyStats(arr){
+    const byId = new Map();
+    for(const o of arr){ if(o && o.player_id != null) byId.set(Number(o.player_id), o); }
+    const now = fmtNow();
+    let updated = 0;
+    for(const t of targets){
+      const id = extractId(t.name);
+      if(id == null) continue;
+      if(byId.has(id)){
+        const o = byId.get(id);
+        const raw = o.bs_estimate;
+        t.statEstimate = (typeof raw === 'number' && isFinite(raw)) ? Math.round(raw / 1000) * 1000 : null;
+        t.statHuman = (typeof o.bs_estimate_human === 'string') ? o.bs_estimate_human : null;
+        t.checkedAt = now;   // stamp even when everything came back null
+        updated++;
+      }
+    }
+    return updated;
+  }
+
+  function errToMsg(err){
+    switch(err && err.kind){
+      case 'cors':  return 'Stats API request blocked by CORS (or the network is down). The stats API must allow cross-origin browser requests, or you must route it through a proxy / serverless function. See README → CORS.';
+      case 'http':  return 'Stats API returned HTTP ' + err.status + '. Check the endpoint URL and key in Settings.' + (err.body ? (' ' + String(err.body).slice(0,160)) : '');
+      case 'json':  return 'Stats API returned invalid JSON. Check the endpoint in Settings.' + (err.sample ? (' Got: ' + err.sample) : '');
+      case 'shape': return 'Stats API did not return a JSON array. Check the endpoint in Settings.' + (err.sample ? (' Got: ' + err.sample) : '');
+      case 'api':   return 'Stats API error: ' + (err.detail || 'unknown') + '.';
+      case 'read':  return 'Could not read the stats API response.';
+      default:      return 'Stats update failed: ' + (err && err.message ? err.message : 'unknown error') + '.';
+    }
+  }
+  function handleStatsError(err){ const m = errToMsg(err); setUpdateStatus(m); toast(m, 'err'); }
+
+  function setUpdating(on){
+    const btn = $('#update-btn');
+    btn.disabled = on || cooling;
+    btn.classList.toggle('loading', on);
+    btn.textContent = on ? 'Updating…' : 'Update Stats';
+  }
+  function setUpdateStatus(s){ $('#update-status').textContent = s || ''; }
+  function startCooldown(){
+    cooling = true;
+    const btn = $('#update-btn');
+    btn.classList.remove('loading');
+    let left = Math.ceil(COOLDOWN_MS / 1000);
+    btn.disabled = true; btn.textContent = 'Cooldown ' + left + 's';
+    const iv = setInterval(() => {
+      left--;
+      if(left <= 0){ clearInterval(iv); cooling = false; btn.disabled = false; btn.textContent = 'Update Stats'; }
+      else btn.textContent = 'Cooldown ' + left + 's';
+    }, 1000);
+  }
+
+  // The ONLY action that touches the stats API.
+  async function updateStats(){
+    if(cooling) return;
+    if(!statsKey()){ toast('No API key set for the stats endpoint. Open Settings.', 'err'); return; }
+    const ids = [...new Set(targets.map(t => extractId(t.name)).filter(x => x != null))];
+    if(ids.length === 0){ toast('No valid targets to update.', 'warn'); return; }
+
+    setUpdating(true);
+    setUpdateStatus('Contacting stats API…');
+    const chunks = [];
+    for(let i = 0; i < ids.length; i += CHUNK_SIZE) chunks.push(ids.slice(i, i + CHUNK_SIZE));
+
+    let combined = [];
+    try {
+      for(let i = 0; i < chunks.length; i++){
+        if(i > 0) await sleep(CHUNK_SPACING_MS);                 // space chunks to respect 20/min
+        if(chunks.length > 1) setUpdateStatus(`Fetching batch ${i+1} / ${chunks.length}…`);
+        await rateGate();
+        combined = combined.concat(await fetchChunk(chunks[i]));
+      }
+    } catch(err){
+      setUpdating(false);
+      handleStatsError(err);
+      return;
+    }
+
+    const n = applyStats(combined);
+    saveTargets();
+    render();
+    setUpdateStatus(`Updated ${n} of ${ids.length} target${ids.length === 1 ? '' : 's'} · ${fmtNow()}`);
+    toast(`Stats updated for ${n} target${n === 1 ? '' : 's'}.`, 'ok');
+    startCooldown();
+  }
+
+  async function testEndpoint(){
+    const sample = targets.map(t => extractId(t.name)).filter(x => x != null).slice(0,3);
+    const ids = sample.length ? sample : [2];     // fall back to a known id for a pure connectivity test
+    const prevUrl = lsGet(LS.statsUrl), prevKey = lsGet(LS.statsKey);
+    const u = $('#set-url').value.trim(), k = $('#set-key').value.trim();
+    if(u) lsSet(LS.statsUrl, u); else lsDel(LS.statsUrl);
+    if(k) lsSet(LS.statsKey, k); else lsDel(LS.statsKey);
+    const out = $('#set-test-out'); out.textContent = 'Testing…'; out.className = 'test-out';
+    try {
+      await rateGate();
+      const arr = await fetchChunk(ids);
+      const first = arr[0];
+      out.classList.add('ok');
+      out.textContent = 'OK — received ' + arr.length + ' record(s).' +
+        (first ? (' First: player_id ' + first.player_id + ', bs_estimate ' + (first.bs_estimate == null ? 'null → N/A' : first.bs_estimate)) : '');
+    } catch(err){
+      out.classList.add('err');
+      out.textContent = errToMsg(err);
+    } finally {
+      if(prevUrl == null) lsDel(LS.statsUrl); else lsSet(LS.statsUrl, prevUrl);
+      if(prevKey == null) lsDel(LS.statsKey); else lsSet(LS.statsKey, prevKey);
+    }
+  }
+
+  /* ===================== Target operations ===================== */
+  function addTarget(raw){
+    const name = (raw || '').trim();
+    const errEl = $('#add-error'); errEl.textContent = '';
+    if(!name){ errEl.textContent = 'Enter a name like “Frenemy [3981563]”.'; return false; }
+    const id = extractId(name);
+    if(id == null){ errEl.textContent = 'Missing target ID. Use the format Name [ID], e.g. Frenemy [3981563].'; return false; }
+    if(targets.some(t => extractId(t.name) === id)){ errEl.textContent = 'That target ID (' + id + ') is already in the list.'; return false; }
+    targets.push({ name, why:'', statEstimate:null, statHuman:null, checkedAt:null });
+    saveTargets(); render();
+    return true;
+  }
+  function commitName(t, value){
+    const name = (value || '').trim();
+    if(name === t.name) return;
+    const id = extractId(name);
+    if(id == null){ toast('Name must include a target ID like [123456]. Reverted.', 'err'); render(); return; }
+    if(targets.some(o => o !== t && extractId(o.name) === id)){ toast('Another target already uses ID ' + id + '. Reverted.', 'err'); render(); return; }
+    t.name = name; saveTargets(); render();
+  }
+  function commitWhy(t, value){ t.why = value; saveTargets(); }
+  function removeTarget(t){ const i = targets.indexOf(t); if(i >= 0){ targets.splice(i,1); saveTargets(); render(); } }
+
+  /* ===================== Sorting ===================== */
+  function tieName(a,b){ return a.name.localeCompare(b.name, undefined, { numeric:true, sensitivity:'base' }); }
+  function sortList(list){
+    const { col, dir } = sort, s = dir === 'asc' ? 1 : -1;
+    return list.slice().sort((a,b) => {
+      if(col === 'stat'){
+        const an = a.statEstimate == null, bn = b.statEstimate == null;
+        if(an && bn) return tieName(a,b);
+        if(an) return 1; if(bn) return -1;          // N/A always to the bottom
+        return a.statEstimate !== b.statEstimate ? (a.statEstimate - b.statEstimate) * s : tieName(a,b);
+      }
+      if(col === 'checked'){
+        const at = parseTs(a.checkedAt), bt = parseTs(b.checkedAt);
+        const an = at == null, bn = bt == null;
+        if(an && bn) return tieName(a,b);
+        if(an) return 1; if(bn) return -1;          // never-checked to the bottom
+        return at !== bt ? (at - bt) * s : tieName(a,b);
+      }
+      return a.name.localeCompare(b.name, undefined, { numeric:true, sensitivity:'base' }) * s;
+    });
+  }
+  function setSort(col){
+    if(sort.col === col) sort.dir = sort.dir === 'asc' ? 'desc' : 'asc';
+    else { sort.col = col; sort.dir = 'asc'; }
+    lsSet(LS.sort, JSON.stringify(sort));
+    render();
+  }
+  function updateSortIndicators(){
+    document.querySelectorAll('th[data-sort]').forEach(th => {
+      const ind = th.querySelector('.sort-ind'); if(!ind) return;
+      if(th.dataset.sort === sort.col){ ind.textContent = sort.dir === 'asc' ? '▲' : '▼'; th.classList.add('sorted'); }
+      else { ind.textContent = ''; th.classList.remove('sorted'); }
+    });
+  }
+
+  /* ===================== Rendering ===================== */
+  function linkEl(href, label, cls){
+    if(!href){ const s = document.createElement('span'); s.className = 'na'; s.textContent = '—'; return s; }
+    const a = document.createElement('a');
+    a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.className = 'row-link ' + (cls || ''); a.textContent = label;
+    return a;
+  }
+  function buildRow(t){
+    const id = extractId(t.name);   // derived links are generated from id, never stored
+    const tr = document.createElement('tr');
+
+    // Name (inline editable)
+    const tdName = document.createElement('td'); tdName.className = 'c-name';
+    const nameIn = document.createElement('input');
+    nameIn.type = 'text'; nameIn.className = 'cell-input'; nameIn.value = t.name; nameIn.spellcheck = false;
+    nameIn.setAttribute('aria-label', 'Target name');
+    nameIn.addEventListener('change', () => commitName(t, nameIn.value));
+    nameIn.addEventListener('keydown', e => { if(e.key === 'Enter') nameIn.blur(); });
+    tdName.appendChild(nameIn);
+    if(id != null){ const chip = document.createElement('span'); chip.className = 'id-chip'; chip.textContent = '#' + id; tdName.appendChild(chip); }
+    tr.appendChild(tdName);
+
+    // Why (inline editable, purely informational)
+    const tdWhy = document.createElement('td'); tdWhy.className = 'c-why';
+    const whyIn = document.createElement('input');
+    whyIn.type = 'text'; whyIn.className = 'cell-input'; whyIn.value = t.why || ''; whyIn.placeholder = 'note…';
+    whyIn.setAttribute('aria-label', 'Why / note');
+    whyIn.addEventListener('change', () => commitWhy(t, whyIn.value));
+    tdWhy.appendChild(whyIn);
+    tr.appendChild(tdWhy);
+
+    // Stat estimate
+    const tdStat = document.createElement('td'); tdStat.className = 'c-stat';
+    const statSpan = document.createElement('span');
+    statSpan.textContent = fmtStat(t);
+    if(t.statEstimate == null) statSpan.classList.add('na');
+    else statSpan.title = displayHuman ? Number(t.statEstimate).toLocaleString('en-US') : (t.statHuman ? ('≈ ' + t.statHuman) : '');
+    tdStat.appendChild(statSpan);
+    tr.appendChild(tdStat);
+
+    // Checked when
+    const tdChk = document.createElement('td'); tdChk.className = 'c-checked';
+    const cs = document.createElement('span'); cs.textContent = t.checkedAt || '—'; if(!t.checkedAt) cs.classList.add('na');
+    tdChk.appendChild(cs);
+    tr.appendChild(tdChk);
+
+    // Profile / Attack links
+    const tdProf = document.createElement('td'); tdProf.className = 'c-link';
+    tdProf.appendChild(linkEl(id != null ? ('https://www.torn.com/profiles.php?XID=' + id) : null, 'Profile', 'link-profile'));
+    tr.appendChild(tdProf);
+
+    const tdAtk = document.createElement('td'); tdAtk.className = 'c-link';
+    tdAtk.appendChild(linkEl(id != null ? ('https://www.torn.com/page.php?sid=attack&user2ID=' + id) : null, 'Attack', 'link-attack'));
+    tr.appendChild(tdAtk);
+
+    // Delete
+    const tdAct = document.createElement('td'); tdAct.className = 'c-act';
+    const del = document.createElement('button');
+    del.className = 'icon-btn danger'; del.title = 'Remove target'; del.setAttribute('aria-label', 'Remove target'); del.textContent = '✕';
+    del.addEventListener('click', () => { if(confirm('Remove ' + t.name + '?')) removeTarget(t); });
+    tdAct.appendChild(del);
+    tr.appendChild(tdAct);
+
+    return tr;
+  }
+  function render(){
+    updateSortIndicators();
+    const tbody = $('#tbody'); tbody.innerHTML = '';
+    const ft = filterText.trim().toLowerCase();
+    let list = targets;
+    if(ft) list = list.filter(t => t.name.toLowerCase().includes(ft) || (t.why || '').toLowerCase().includes(ft));
+    list = sortList(list);
+
+    $('#count').textContent = targets.length + (targets.length === 1 ? ' target' : ' targets') + (ft ? ` (${list.length} shown)` : '');
+
+    if(list.length === 0){
+      const tr = document.createElement('tr'); tr.className = 'empty-row';
+      const td = document.createElement('td'); td.colSpan = 7;
+      td.textContent = targets.length === 0
+        ? 'No targets yet. Add one above, Import a list, or load targets.json.'
+        : 'No targets match your filter.';
+      tr.appendChild(td); tbody.appendChild(tr);
+      return;
+    }
+    const frag = document.createDocumentFragment();
+    for(const t of list) frag.appendChild(buildRow(t));
+    tbody.appendChild(frag);
+  }
+
+  /* ===================== Import / Export ===================== */
+  function exportJson(){
+    const payload = { version:1, faction_id:FACTION_ID, exported_at:fmtNow(), targets: targets.map(exportTarget) };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'targets.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function extractTargetsArray(data){
+    if(Array.isArray(data)) return data;
+    if(data && Array.isArray(data.targets)) return data.targets;
+    return null;
+  }
+  function importJson(file){
+    const reader = new FileReader();
+    reader.onload = () => {
+      let data; try { data = JSON.parse(reader.result); } catch(e){ toast('Import failed: not valid JSON.', 'err'); return; }
+      const arr = extractTargetsArray(data);
+      if(!arr){ toast('Import failed: expected an array of targets or {"targets":[...]}.', 'err'); return; }
+      const norm = dedupeById(arr.map(normalizeTarget).filter(Boolean));
+      if(norm.length === 0){ toast('Import failed: no valid targets found.', 'err'); return; }
+      if(targets.length > 0 && !confirm('Replace your current ' + targets.length + ' target(s) with ' + norm.length + ' imported target(s)?')) return;
+      targets = norm; saveTargets(); render();
+      toast('Imported ' + targets.length + ' target' + (targets.length === 1 ? '' : 's') + '.', 'ok');
+    };
+    reader.onerror = () => toast('Import failed: could not read file.', 'err');
+    reader.readAsText(file);
+  }
+
+  // Offer to load a targets.json sitting next to index.html (works when served, e.g. GitHub Pages).
+  async function maybeOfferTargetsJson(){
+    if(lsGet(LS.offered) === '1') return;
+    let data;
+    try {
+      const res = await fetch('./targets.json', { cache:'no-store' });
+      if(!res.ok){ lsSet(LS.offered, '1'); return; }
+      data = await res.json();
+    } catch(e){ return; }   // file:// or missing -> silently skip (try again next served load)
+    const arr = extractTargetsArray(data);
+    if(!arr || arr.length === 0){ lsSet(LS.offered, '1'); return; }
+    pendingJson = arr;
+    $('#json-banner-text').textContent = 'Found targets.json next to this page with ' + arr.length + ' target' + (arr.length === 1 ? '' : 's') + '.';
+    $('#json-banner').hidden = false;
+  }
+  function onJsonLoad(){
+    if(!pendingJson) return onJsonDismiss();
+    const norm = dedupeById(pendingJson.map(normalizeTarget).filter(Boolean));
+    if(norm.length === 0){ toast('targets.json had no valid targets.', 'warn'); return onJsonDismiss(); }
+    if(targets.length > 0 && !confirm('Replace your current ' + targets.length + ' target(s) with ' + norm.length + ' from targets.json?')) return;
+    targets = norm; saveTargets(); render();
+    lsSet(LS.offered, '1'); $('#json-banner').hidden = true; pendingJson = null;
+    toast('Loaded ' + targets.length + ' target' + (targets.length === 1 ? '' : 's') + ' from targets.json.', 'ok');
+  }
+  function onJsonDismiss(){ lsSet(LS.offered, '1'); $('#json-banner').hidden = true; pendingJson = null; }
+
+  /* ===================== Settings ===================== */
+  function renderSettingsFields(){
+    $('#set-url').value = statsUrlTemplate();
+    $('#set-key').value = lsGet(LS.statsKey) || '';
+    $('#set-key').placeholder = 'Defaults to your verified Torn key' + (lsGet(LS.key) ? (' (' + maskKey(lsGet(LS.key)) + ')') : '');
+  }
+  function openSettings(){ renderSettingsFields(); const o = $('#set-test-out'); o.textContent = ''; o.className = 'test-out'; $('#settings-modal').hidden = false; $('#set-url').focus(); }
+  function closeSettings(){ $('#settings-modal').hidden = true; }
+  function saveSettings(){
+    const url = $('#set-url').value.trim(), key = $('#set-key').value.trim();
+    if(url) lsSet(LS.statsUrl, url); else lsDel(LS.statsUrl);
+    if(key) lsSet(LS.statsKey, key); else lsDel(LS.statsKey);
+    closeSettings(); toast('Settings saved.', 'ok');
+  }
+  function resetSettings(){ $('#set-url').value = DEFAULT_STATS_URL; }
+
+  function setHuman(on){ displayHuman = !!on; lsSet(LS.human, on ? '1' : '0'); render(); }
+
+  /* ===================== Init ===================== */
+  function init(){
+    try { const s = JSON.parse(lsGet(LS.sort) || ''); if(s && s.col && s.dir) sort = s; } catch(e){}
+    displayHuman = lsGet(LS.human) === '1';
+    targets = loadTargets();
+
+    // Gate
+    $('#gate-form').addEventListener('submit', e => { e.preventDefault(); verifyKey($('#gate-key').value); });
+    $('#gate-show').addEventListener('change', e => { $('#gate-key').type = e.target.checked ? 'text' : 'password'; });
+
+    // App
+    $('#add-form').addEventListener('submit', e => { e.preventDefault(); if(addTarget($('#add-input').value)){ $('#add-input').value = ''; $('#add-input').focus(); } });
+    $('#update-btn').addEventListener('click', updateStats);
+    $('#logout-btn').addEventListener('click', logout);
+    $('#export-btn').addEventListener('click', exportJson);
+    $('#import-btn').addEventListener('click', () => $('#import-file').click());
+    $('#import-file').addEventListener('change', e => { const f = e.target.files[0]; if(f) importJson(f); e.target.value = ''; });
+    $('#human-toggle').addEventListener('change', e => setHuman(e.target.checked));
+    $('#filter-input').addEventListener('input', e => { filterText = e.target.value; render(); });
+    $('#json-load').addEventListener('click', onJsonLoad);
+    $('#json-dismiss').addEventListener('click', onJsonDismiss);
+
+    // Settings
+    $('#settings-btn').addEventListener('click', openSettings);
+    $('#set-save').addEventListener('click', saveSettings);
+    $('#set-cancel').addEventListener('click', closeSettings);
+    $('#set-cancel2').addEventListener('click', closeSettings);
+    $('#set-reset').addEventListener('click', resetSettings);
+    $('#set-test').addEventListener('click', testEndpoint);
+    $('#settings-modal').addEventListener('click', e => { if(e.target.id === 'settings-modal') closeSettings(); });
+    document.addEventListener('keydown', e => { if(e.key === 'Escape' && !$('#settings-modal').hidden) closeSettings(); });
+
+    // Sort headers
+    document.querySelectorAll('th[data-sort]').forEach(th => th.addEventListener('click', () => setSort(th.dataset.sort)));
+    $('#human-toggle').checked = displayHuman;
+
+    // Initial screen: skip gate only if previously verified.
+    if(lsGet(LS.verified) === '1' && (lsGet(LS.key) || '').trim()) unlock();
+    else { $('#gate').hidden = false; $('#app').hidden = true; }
+  }
+  document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>
