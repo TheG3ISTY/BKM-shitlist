@@ -30,6 +30,9 @@
     --shadow:0 10px 30px rgba(0,0,0,.45);
   }
   *{box-sizing:border-box}
+  /* The HTML `hidden` attribute must always win over the display rules below
+     (.gate/.modal/.banner set display:flex, which would otherwise override it). */
+  [hidden]{display:none !important}
   html,body{height:100%}
   body{
     margin:0;
