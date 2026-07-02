@@ -277,7 +277,6 @@
       </div>
     </div>
     <div class="topbar-right">
-      <button class="btn" id="settings-btn" title="Stats endpoint &amp; key">⚙ Settings</button>
       <button class="btn" id="export-btn" title="Download targets.json">⬇ Export</button>
       <button class="btn" id="import-btn" title="Load a targets JSON file">⬆ Import</button>
       <input type="file" id="import-file" accept="application/json,.json" hidden>
@@ -331,45 +330,6 @@
   </footer>
 </div>
 
-<!-- ============ SETTINGS MODAL ============ -->
-<div id="settings-modal" class="modal" hidden>
-  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="set-title">
-    <div class="modal-head">
-      <h2 id="set-title">⚙ Stats API Settings <span style="font-weight:400;color:var(--muted);font-size:.8rem">(optional)</span></h2>
-      <button class="icon-btn" id="set-cancel" aria-label="Close">✕</button>
-    </div>
-    <div class="modal-body">
-      <p class="settings-intro">✅ Nothing to set up here for normal use — the app already uses your verified Torn key with the FFScouter stats API. Just close this and hit <strong>Update Stats</strong>. The options below are only for power users who want a different stats provider or a CORS proxy.</p>
-
-      <details class="advanced">
-        <summary>Advanced overrides</summary>
-        <div class="advanced-body">
-          <label class="field-label" for="set-url">Stats endpoint URL template</label>
-          <input id="set-url" class="input mono" spellcheck="false">
-          <p class="help">Use <code>{KEY}</code> and <code>{IDS}</code> as placeholders. <code>{IDS}</code> becomes a comma-separated list of target IDs. Default is the FFScouter batch API — you normally never change this.</p>
-
-          <label class="field-label" for="set-key">Stats API key (override)</label>
-          <input id="set-key" class="input mono" type="text" spellcheck="false">
-          <p class="help">Leave blank to reuse your verified Torn key. Override only if your stats provider needs a different key.</p>
-
-          <div class="set-actions">
-            <button class="btn" id="set-test">Test endpoint</button>
-            <button class="btn" id="set-reset">Reset URL to default</button>
-          </div>
-          <p id="set-test-out" class="test-out"></p>
-        </div>
-      </details>
-
-      <div class="set-actions">
-        <span class="spacer"></span>
-        <button class="btn" id="set-cancel2">Close</button>
-        <button class="btn btn-primary" id="set-save">Save</button>
-      </div>
-      <p class="help small" style="margin-top:1rem">Rate limit: max <strong>20 requests/minute per IP</strong>. One “Update Stats” click is a single batched request (up to 200 IDs); larger lists are auto-chunked and spaced ~3.5s apart, and the button has a short cooldown so it can’t be spammed.</p>
-    </div>
-  </div>
-</div>
-
 <div id="toast" role="status"></div>
 
 <script>
@@ -388,7 +348,7 @@
 
   const LS = {
     key:'bk_hitlist_key', verified:'bk_hitlist_verified', user:'bk_hitlist_user',
-    targets:'bk_hitlist_targets', statsUrl:'bk_hitlist_stats_url', statsKey:'bk_hitlist_stats_key',
+    targets:'bk_hitlist_targets',
     human:'bk_hitlist_human', offered:'bk_hitlist_offered_json', sort:'bk_hitlist_sort',
   };
 
@@ -419,7 +379,6 @@
   }
   // The ID is ALWAYS derived from the name; never stored separately.
   function extractId(name){ const m = /\[(\d+)\]/.exec(name || ''); return m ? Number(m[1]) : null; }
-  function maskKey(k){ if(!k) return ''; return k.length <= 4 ? '••••' : (k.slice(0,2)+'••••'+k.slice(-2)); }
 
   let _toastT = null;
   function toast(msg, kind){
@@ -528,19 +487,11 @@
     gateError('');
   }
 
-  /* ===================== Stats endpoint ===================== */
-  function statsKey(){ const o = (lsGet(LS.statsKey) || '').trim(); return o || (lsGet(LS.key) || '').trim(); }
-  function statsUrlTemplate(){ return (lsGet(LS.statsUrl) || '').trim() || DEFAULT_STATS_URL; }
-
+  /* ===================== Stats endpoint (hardcoded FFScouter, uses the verified key) ===================== */
+  function statsKey(){ return (lsGet(LS.key) || '').trim(); }
   function buildStatsUrl(ids){
-    const idsStr = ids.join(',');   // digits + commas -> URL-safe, no encoding needed
-    const key = statsKey();
-    let url = statsUrlTemplate();
-    url = url.includes('{IDS}') ? url.split('{IDS}').join(idsStr)
-                                : url + (url.includes('?') ? '&' : '?') + 'targets=' + idsStr;
-    url = url.includes('{KEY}') ? url.split('{KEY}').join(key)
-                                : (/[?&]key=/.test(url) ? url : url + (url.includes('?') ? '&' : '?') + 'key=' + key);
-    return url;
+    // digits + commas are URL-safe; the key is alphanumeric. No user config.
+    return DEFAULT_STATS_URL.split('{IDS}').join(ids.join(',')).split('{KEY}').join(statsKey());
   }
 
   // Hard rate limiter: never exceed 20 requests / 60s.
@@ -631,7 +582,7 @@
   // The ONLY action that touches the stats API.
   async function updateStats(){
     if(cooling) return;
-    if(!statsKey()){ toast('No API key set for the stats endpoint. Open Settings.', 'err'); return; }
+    if(!statsKey()){ toast('No verified key found — log out and sign in again.', 'err'); return; }
     const ids = [...new Set(targets.map(t => extractId(t.name)).filter(x => x != null))];
     if(ids.length === 0){ toast('No valid targets to update.', 'warn'); return; }
 
@@ -660,30 +611,6 @@
     setUpdateStatus(`Updated ${n} of ${ids.length} target${ids.length === 1 ? '' : 's'} · ${fmtNow()}`);
     toast(`Stats updated for ${n} target${n === 1 ? '' : 's'}.`, 'ok');
     startCooldown();
-  }
-
-  async function testEndpoint(){
-    const sample = targets.map(t => extractId(t.name)).filter(x => x != null).slice(0,3);
-    const ids = sample.length ? sample : [2];     // fall back to a known id for a pure connectivity test
-    const prevUrl = lsGet(LS.statsUrl), prevKey = lsGet(LS.statsKey);
-    const u = $('#set-url').value.trim(), k = $('#set-key').value.trim();
-    if(u) lsSet(LS.statsUrl, u); else lsDel(LS.statsUrl);
-    if(k) lsSet(LS.statsKey, k); else lsDel(LS.statsKey);
-    const out = $('#set-test-out'); out.textContent = 'Testing…'; out.className = 'test-out';
-    try {
-      await rateGate();
-      const arr = await fetchChunk(ids);
-      const first = arr[0];
-      out.classList.add('ok');
-      out.textContent = 'OK — received ' + arr.length + ' record(s).' +
-        (first ? (' First: player_id ' + first.player_id + ', bs_estimate ' + (first.bs_estimate == null ? 'null → N/A' : first.bs_estimate)) : '');
-    } catch(err){
-      out.classList.add('err');
-      out.textContent = errToMsg(err);
-    } finally {
-      if(prevUrl == null) lsDel(LS.statsUrl); else lsSet(LS.statsUrl, prevUrl);
-      if(prevKey == null) lsDel(LS.statsKey); else lsSet(LS.statsKey, prevKey);
-    }
   }
 
   /* ===================== Target operations ===================== */
@@ -890,22 +817,6 @@
   }
   function onJsonDismiss(){ lsSet(LS.offered, '1'); $('#json-banner').hidden = true; pendingJson = null; }
 
-  /* ===================== Settings ===================== */
-  function renderSettingsFields(){
-    $('#set-url').value = statsUrlTemplate();
-    $('#set-key').value = lsGet(LS.statsKey) || '';
-    $('#set-key').placeholder = 'Defaults to your verified Torn key' + (lsGet(LS.key) ? (' (' + maskKey(lsGet(LS.key)) + ')') : '');
-  }
-  function openSettings(){ renderSettingsFields(); const o = $('#set-test-out'); o.textContent = ''; o.className = 'test-out'; $('#settings-modal').hidden = false; }
-  function closeSettings(){ $('#settings-modal').hidden = true; }
-  function saveSettings(){
-    const url = $('#set-url').value.trim(), key = $('#set-key').value.trim();
-    if(url) lsSet(LS.statsUrl, url); else lsDel(LS.statsUrl);
-    if(key) lsSet(LS.statsKey, key); else lsDel(LS.statsKey);
-    closeSettings(); toast('Settings saved.', 'ok');
-  }
-  function resetSettings(){ $('#set-url').value = DEFAULT_STATS_URL; }
-
   function setHuman(on){ displayHuman = !!on; lsSet(LS.human, on ? '1' : '0'); render(); }
 
   /* ===================== Init ===================== */
@@ -929,16 +840,6 @@
     $('#filter-input').addEventListener('input', e => { filterText = e.target.value; render(); });
     $('#json-load').addEventListener('click', onJsonLoad);
     $('#json-dismiss').addEventListener('click', onJsonDismiss);
-
-    // Settings
-    $('#settings-btn').addEventListener('click', openSettings);
-    $('#set-save').addEventListener('click', saveSettings);
-    $('#set-cancel').addEventListener('click', closeSettings);
-    $('#set-cancel2').addEventListener('click', closeSettings);
-    $('#set-reset').addEventListener('click', resetSettings);
-    $('#set-test').addEventListener('click', testEndpoint);
-    $('#settings-modal').addEventListener('click', e => { if(e.target.id === 'settings-modal') closeSettings(); });
-    document.addEventListener('keydown', e => { if(e.key === 'Escape' && !$('#settings-modal').hidden) closeSettings(); });
 
     // Sort headers
     document.querySelectorAll('th[data-sort]').forEach(th => th.addEventListener('click', () => setSort(th.dataset.sort)));
