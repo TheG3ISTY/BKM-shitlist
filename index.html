@@ -354,6 +354,12 @@
   <div id="view-war" hidden>
     <section class="controls">
       <div id="war-master-controls" hidden>
+        <div class="toolbar" style="margin-bottom:.7rem">
+          <input id="war-ffkey" class="input mono" type="password" placeholder="FFScouter API key (only if different from your login key)" spellcheck="false" style="max-width:380px;flex:0 1 380px">
+          <label class="checkline"><input type="checkbox" id="war-ffkey-show"> Show</label>
+          <button class="btn btn-small" id="war-ffkey-save" type="button">Save FFScouter key</button>
+          <span id="war-ffkey-status" class="small muted"></span>
+        </div>
         <form id="war-gen-form" class="add-form" autocomplete="off">
           <input id="war-faction-input" class="input" placeholder="Enemy faction ID — e.g. 12345" inputmode="numeric" spellcheck="false">
           <button class="btn btn-primary" id="war-gen-btn" type="submit">⚔️ Generate</button>
@@ -426,6 +432,7 @@
     key:'bk_hitlist_key', verified:'bk_hitlist_verified', user:'bk_hitlist_user',
     targets:'bk_hitlist_targets',
     human:'bk_hitlist_human', sort:'bk_hitlist_sort', mayRemove:'bk_hitlist_may_remove',
+    statsKeyOverride:'bk_hitlist_stats_key',   // optional FFScouter key (if it differs from the Torn login key)
   };
 
   /* ===================== State ===================== */
@@ -651,9 +658,12 @@
 
   /* ===================== Stats endpoint (hardcoded FFScouter, uses the verified key) ===================== */
   function statsKey(){ return (lsGet(LS.key) || '').trim(); }
+  // FFScouter authenticates with a key that some users register separately from
+  // their Torn login key. Use the override when set, else fall back to the login key.
+  function ffKey(){ return (lsGet(LS.statsKeyOverride) || '').trim() || statsKey(); }
   function buildStatsUrl(ids){
-    // digits + commas are URL-safe; the key is alphanumeric. No user config.
-    return DEFAULT_STATS_URL.split('{IDS}').join(ids.join(',')).split('{KEY}').join(statsKey());
+    // digits + commas are URL-safe; keys are alphanumeric.
+    return DEFAULT_STATS_URL.split('{IDS}').join(ids.join(',')).split('{KEY}').join(ffKey());
   }
 
   // Hard rate limiter: never exceed 20 requests / 60s.
@@ -1136,6 +1146,18 @@
     if(msg !== undefined) setWarStatusMsg(msg);
   }
   function warStatsError(err){ const m = errToMsg(err); setWarStatusMsg(m); toast(m, 'err'); }
+  function updateFfKeyStatus(){
+    const s = $('#war-ffkey-status'); if(!s) return;
+    s.textContent = (lsGet(LS.statsKeyOverride) || '').trim()
+      ? 'Using a custom FFScouter key for stat lookups.'
+      : 'Using your login key for FFScouter.';
+  }
+  function saveFfKey(){
+    const v = ($('#war-ffkey').value || '').trim();
+    if(v) lsSet(LS.statsKeyOverride, v); else lsDel(LS.statsKeyOverride);
+    updateFfKeyStatus();
+    toast(v ? 'FFScouter key saved — used for all stat lookups from this browser.' : 'FFScouter key cleared — back to your login key.', 'ok');
+  }
 
   // MASTER: pull the enemy faction roster, then (default) fetch stats in the same pass.
   async function generateWar(){
@@ -1385,6 +1407,10 @@
     $('#war-clear-btn').addEventListener('click', clearWar);
     $('#war-filter-input').addEventListener('input', e => { warFilterText = e.target.value; renderWar(); });
     $('#war-human-toggle').addEventListener('change', e => setHuman(e.target.checked));
+    $('#war-ffkey').value = lsGet(LS.statsKeyOverride) || '';
+    $('#war-ffkey-save').addEventListener('click', saveFfKey);
+    $('#war-ffkey-show').addEventListener('change', e => { $('#war-ffkey').type = e.target.checked ? 'text' : 'password'; });
+    updateFfKeyStatus();
 
     // Re-pull the shared lists when returning to the tab (debounced), so you see others' changes.
     let focusT = 0;
