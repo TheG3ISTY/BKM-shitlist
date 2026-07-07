@@ -80,7 +80,15 @@ function memberInfo(key) {
   var cache = CacheService.getScriptCache();
   var ck = cacheKey(key);
   var hit = cache.get(ck);
-  if (hit) { try { var p = JSON.parse(hit); if (p && typeof p.ok === 'boolean') return p; } catch (e) {} }
+  if (hit) {
+    try {
+      var p = JSON.parse(hit);
+      // Honor cached negatives, and cached positives that already carry a playerId.
+      // Ignore stale positives cached before playerId existed, so they re-fetch
+      // (otherwise a pre-upgrade cache entry keeps a master reading as non-master).
+      if (p && typeof p.ok === 'boolean' && (p.ok === false || p.playerId)) return p;
+    } catch (e) {}
+  }
   var info = { ok: false, position: '', playerId: 0 };
   try {
     var resp = UrlFetchApp.fetch(
