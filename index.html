@@ -307,7 +307,7 @@
 
   <nav class="tabs">
     <button class="tab active" id="tab-hitlist" type="button">🎯 Hit List</button>
-    <button class="tab" id="tab-war" type="button" hidden>⚔️ War List</button>
+    <button class="tab" id="tab-war" type="button">⚔️ War List</button>
   </nav>
 
   <div id="view-hitlist">
@@ -1099,10 +1099,10 @@
     $('#tab-war').classList.toggle('active', view === 'war');
     if(view === 'war') renderWar(); else render();
   }
-  // Reflect master/active state into the tab bar and master controls.
+  // The War tab is always visible to every verified faction member. What changes
+  // by identity is EDIT rights: only the master sees the controls, and the server
+  // enforces it regardless of the UI. Non-masters get a read-only view.
   function updateTabs(){
-    const show = isMaster || warActive;
-    const warTab = $('#tab-war'); if(warTab) warTab.hidden = !show;
     const mc = $('#war-master-controls'); if(mc) mc.hidden = !isMaster;
     const ab = $('#war-activate-btn');
     if(ab){
@@ -1111,7 +1111,6 @@
     }
     const who = $('#whoami');
     if(who && isMaster && !/👑/.test(who.textContent)) who.textContent += ' · 👑 War master';
-    if(activeView === 'war' && !show) switchView('hitlist');   // lost access -> bounce back
     updateWarInfo();
   }
   function updateWarInfo(){

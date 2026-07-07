@@ -37,9 +37,12 @@ Do these steps once, then send Claude the **Web app URL**.
 ## War list (second tab)
 
 The app has a second view, **War List**, generated from an enemy faction ID.
-It's **master-controlled**: only one Torn player may generate, update, activate,
-or clear it. Everyone else in the faction can only *read* it, and only once the
-master has **activated** it (before that, only the master sees it).
+The **⚔️ War List tab is always visible** to every verified faction member, but
+it's **master-controlled**: only one Torn player may generate, update, activate,
+or clear it — everyone else gets a **read-only** view (no controls, enforced
+server-side). Non-masters only see the roster once the master has **activated**
+it; before that they see a "not active yet" placeholder while the master preps
+it privately.
 
 - The master is pinned in `Code.gs` as `var MASTER_ID = 4117638;` (TheG3ISTY).
   To hand the tool to someone else, change that number to their Torn player ID

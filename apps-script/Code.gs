@@ -263,12 +263,18 @@ function warFindRowById(sh, id) {
   }
   return -1;
 }
-// Read-only status for everyone; the roster itself is only returned when the
-// list is active OR the caller is the master (so the master can prep privately).
+// The War tab is visible to everyone, but the roster + which faction it targets
+// are only returned when the list is active OR the caller is the master (so the
+// master can prep privately before revealing it to the faction).
 function warStatus(master) {
   var m = warMeta();
-  var out = { ok: true, active: m.active, factionId: m.factionId, factionName: m.factionName, generatedAt: m.generatedAt };
-  if (m.active || master) out.war = warReadAll();
+  var out = { ok: true, active: m.active };
+  if (m.active || master) {
+    out.factionId = m.factionId;
+    out.factionName = m.factionName;
+    out.generatedAt = m.generatedAt;
+    out.war = warReadAll();
+  }
   return out;
 }
 // Pull the enemy faction's roster from Torn and replace the War tab with it.
