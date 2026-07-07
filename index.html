@@ -388,6 +388,7 @@
             <th>Status</th>
             <th>Profile</th>
             <th>Attack</th>
+            <th aria-label="Actions"></th>
           </tr>
         </thead>
         <tbody id="war-tbody"></tbody>
@@ -1275,7 +1276,42 @@
     tdAtk.appendChild(atk);
     tr.appendChild(tdAtk);
 
+    // Per-row Refresh (master only) — one API request for this member, like the hit list.
+    const tdAct = document.createElement('td'); tdAct.className = 'c-act';
+    if(isMaster){
+      const ref = document.createElement('button');
+      ref.className = 'btn btn-small row-refresh';
+      ref.textContent = w._busy ? '…' : 'Refresh';
+      ref.disabled = !!w._busy;
+      ref.title = 'Refresh just this member (1 API request)';
+      ref.addEventListener('click', () => refreshWarOne(w));
+      tdAct.appendChild(ref);
+    }
+    tr.appendChild(tdAct);
+
     return tr;
+  }
+  // MASTER: refresh a single war member's stats (one FFScouter request), save to the War tab.
+  async function refreshWarOne(w){
+    if(!isMaster || w._busy) return;
+    const id = extractId(w.name);
+    if(id == null){ toast('This row has no valid target ID.', 'err'); return; }
+    if(!statsKey()){ toast('No verified key found — log out and sign in again.', 'err'); return; }
+    w._busy = true; renderWar();
+    try {
+      await rateGate();
+      const arr = await fetchChunk([id]);
+      const byId = new Map(arr.filter(o => o && o.player_id != null).map(o => [Number(o.player_id), o]));
+      const data = await sheetCall('warSetStats', { stats: [ toStatEntry(id, byId.get(id) || null, fmtNow()) ] });
+      noteRole(data);
+      if(data.ok && Array.isArray(data.war)) warList = data.war.map(normalizeWar).filter(Boolean);
+      refreshStatuses([id]);
+      toast('Refreshed ' + w.name + '.', 'ok');
+    } catch(err){
+      const m = errToMsg(err); setWarStatusMsg(m); toast(m, 'err');
+    } finally {
+      delete w._busy; renderWar();
+    }
   }
   function updateWarSortIndicators(){
     document.querySelectorAll('#view-war th[data-sort]').forEach(th => {
@@ -1304,7 +1340,7 @@
 
     if(list.length === 0){
       const tr = document.createElement('tr'); tr.className = 'empty-row';
-      const td = document.createElement('td'); td.colSpan = 8;
+      const td = document.createElement('td'); td.colSpan = 9;
       td.textContent = warFactionId
         ? 'No members match your filter.'
         : (isMaster
