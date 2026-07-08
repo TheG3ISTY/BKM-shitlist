@@ -980,11 +980,16 @@
   function manualStatInput(row, onSave){
     const inp = document.createElement('input');
     inp.type = 'text'; inp.className = 'cell-input stat-edit'; inp.inputMode = 'decimal';
-    inp.value = (row.statEstimate == null) ? '' : String(row.statEstimate);
+    // Show the value with thousands separators; parseStatInput strips them on save.
+    inp.value = (row.statEstimate == null) ? '' : Number(row.statEstimate).toLocaleString('en-US');
     inp.placeholder = 'e.g. 2.1b'; inp.spellcheck = false;
     inp.setAttribute('aria-label', 'Manual stat estimate');
-    inp.title = 'Hand-entered stat (excluded from refreshes)';
-    inp.addEventListener('change', () => onSave(inp.value));
+    inp.title = 'Hand-entered stat (excluded from refreshes). Commas and k/m/b suffixes are fine.';
+    inp.addEventListener('change', () => {
+      const n = parseStatInput(inp.value);
+      if(n != null) inp.value = n.toLocaleString('en-US');   // reformat instantly so the commas stick
+      onSave(inp.value);
+    });
     inp.addEventListener('keydown', e => { if(e.key === 'Enter') inp.blur(); });
     return inp;
   }
