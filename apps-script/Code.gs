@@ -148,7 +148,8 @@ function doPost(e) {
       case 'setStats': out = setStats(body); break;
       case 'setManual': out = master ? setManual(body)  : forbiddenTargets(); break;
       case 'setShared': out = master ? setShared(body)  : forbiddenTargets(); break;
-      case 'setFaction': out = master ? setFaction(body) : forbiddenTargets(); break;
+      // Reassigning a target's faction is OWNER-only (a sensitive cross-faction move).
+      case 'setFaction': out = owner ? setFaction(body) : forbiddenTargets(); break;
       // ---- War list (per-roster; body.war selects the faction id) ----
       case 'warStatus':       out = warStatus(member, wkey); break;
       case 'warGenerate':     out = warMaster ? warGenerate(body, wkey)     : forbidden(); break;
@@ -162,6 +163,7 @@ function doPost(e) {
       case 'adminConfig':        out = owner ? adminConfig()             : forbidden(); break;
       case 'adminAddFaction':    out = owner ? adminAddFaction(body)     : forbidden(); break;
       case 'adminRemoveFaction': out = owner ? adminRemoveFaction(body)  : forbidden(); break;
+      case 'adminSetColor':      out = owner ? adminSetColor(body)       : forbidden(); break;
       case 'adminAddMaster':     out = owner ? adminAddMaster(body)      : forbidden(); break;
       case 'adminRemoveMaster':  out = owner ? adminRemoveMaster(body)   : forbidden(); break;
       default:         out = { ok: false, error: 'unknown_action' };
@@ -262,6 +264,16 @@ function adminAddFaction(body) {
   var wl = getWhitelist();
   var color = (wl[String(fid)] && wl[String(fid)].color) ? wl[String(fid)].color : pickColor(wl);
   wl[String(fid)] = { name: res.name, color: color };
+  saveWhitelist(wl);
+  return { ok: true, whitelist: wl, masters: getMasterMap() };
+}
+function adminSetColor(body) {
+  var fid = parseInt(body.factionId, 10) || 0;
+  var color = String(body.color || '').trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(color)) return { ok: false, error: 'bad_color' };
+  var wl = getWhitelist();
+  if (!wl[String(fid)]) return { ok: false, error: 'bad_faction' };
+  wl[String(fid)].color = color;
   saveWhitelist(wl);
   return { ok: true, whitelist: wl, masters: getMasterMap() };
 }

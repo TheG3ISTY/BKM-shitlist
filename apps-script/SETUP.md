@@ -46,9 +46,10 @@ panel — adding a faction or a master needs **no code change and no redeploy**.
   thing you edit in code + redeploy for.
 - **Masters** are assigned **per faction** for the war lists: a master controls
   only their assigned faction(s)' war roster. They can *also* curate the shared
-  hit list (delete / Manual / Shared / Faction) — hit-list curation is **not**
-  scoped per faction, since a shared list can't be. Owner assigns/unassigns them
-  in Admin (stored as `{ playerId: [factionId, …] }`).
+  hit list (delete / Manual / Shared) — that part is **not** scoped per faction,
+  since a shared list can't be. **Reassigning a target's faction is OWNER-only**
+  (a sensitive cross-faction move), as is editing faction colours. Owner
+  assigns/unassigns masters in Admin (stored as `{ playerId: [factionId, …] }`).
 - **Members**: anyone in a whitelisted faction. Can add targets, edit name/notes,
   and refresh stats.
 - Seeds (used only on first run, before anything is saved): whitelist =
