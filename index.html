@@ -254,12 +254,17 @@
   .fac-tag.t-bkm{color:var(--fac-bkm);border:1px solid rgba(96,165,250,.5)}
   .fac-tag.t-sh{color:var(--fac-sh);border:1px solid rgba(244,114,182,.5)}
   .fac-tag.t-shared{color:var(--fac-shared);border:1px solid rgba(192,132,252,.55)}
-  /* Master-only per-row faction switch (BKM ⇄ Static Hearts) */
-  .fac-switch{font-family:var(--mono);font-size:.72rem;padding:.28rem .5rem;margin-right:.35rem;vertical-align:middle}
-  .fac-switch.f-bkm{border-color:rgba(96,165,250,.55);color:var(--fac-bkm)}
-  .fac-switch.f-bkm:hover{background:rgba(96,165,250,.12)}
-  .fac-switch.f-sh{border-color:rgba(244,114,182,.55);color:var(--fac-sh)}
-  .fac-switch.f-sh:hover{background:rgba(244,114,182,.12)}
+  /* Owner-only per-row faction reassignment dropdown */
+  .fac-select{
+    background:var(--surface-2);border:1px solid var(--border-2);border-radius:7px;
+    font-size:.74rem;font-weight:700;padding:.3rem .3rem;max-width:9.5rem;
+    cursor:pointer;margin-right:.35rem;vertical-align:middle;outline:none;
+  }
+  .fac-select option{color:var(--text);background:var(--surface-2)}
+  /* Admin colour picker swatch */
+  .admin-color{width:30px;height:26px;flex:0 0 auto;padding:0;border:1px solid var(--border);border-radius:6px;background:transparent;cursor:pointer}
+  .admin-color::-webkit-color-swatch-wrapper{padding:2px}
+  .admin-color::-webkit-color-swatch{border:none;border-radius:4px}
 
   /* Faction filter checkboxes (hit list): toggle each bucket independently */
   #hit-faction-filters{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
@@ -569,7 +574,7 @@
   const DEFAULT_STATS_URL = 'https://ffscouter.com/api/v1/get-stats?key={KEY}&targets={IDS}';
   // Shared Google Sheet backend (Apps Script web app). Every call is verified
   // server-side against the current whitelist.
-  const SHEET_API = 'https://script.google.com/macros/s/AKfycbz699kcH2XMt-CbjRlaVUC-FjVq2QZm8KDcpvlMbdMCqf4ynXxfJpi-D4Y0EcGgFQ-wHw/exec';
+  const SHEET_API = 'https://script.google.com/macros/s/AKfycby3wkUQjrHlY21G-Cld7Gji-n4ak-hpNLgtoJzLymbFn8fxkN8KkdgdZGzO-arqVtpBtg/exec';
   const CHUNK_SIZE = 200;          // FFScouter allows up to 205 IDs / request
   const CHUNK_SPACING_MS = 3500;   // spacing when chunking -> well under 20/min
   const RATE_MAX = 20;             // hard cap: 20 requests / 60s / IP (FFScouter)
@@ -690,10 +695,10 @@
   function noteRole(data){
     if(!data) return;
     if(data.factions && typeof data.factions === 'object'){
-      const before = factionIds().join(',');
+      const before = JSON.stringify(FACTIONS);
       setFactions(data.factions);
       lsSet(LS.factions, JSON.stringify(FACTIONS));
-      if(factionIds().join(',') !== before) onWhitelistChanged();   // rebuild dynamic UI
+      if(JSON.stringify(FACTIONS) !== before) onWhitelistChanged();   // rebuild dynamic UI (names/colours/ids)
     }
     if(typeof data.isMaster === 'boolean') isMaster = data.isMaster;
     if(typeof data.isOwner === 'boolean') isOwner = data.isOwner;
@@ -1249,15 +1254,13 @@
     t.shared = on; render();
     await mutate('setShared', { id: String(id), shared: on });
   }
-  // The next whitelisted faction after fid (cycles; used by the row faction switch).
-  function nextFaction(fid){ const ids = factionIds(); if(!ids.length) return fid; const i = ids.indexOf(fid); return ids[(i + 1) % ids.length]; }
-  // MASTER: reassign a target's faction (cycle it through the whitelisted factions).
-  async function switchTargetFaction(t){
-    if(!isMaster) return;   // gated to masters (mirrors the server)
+  // OWNER: reassign a target to a specific faction (chosen from the row dropdown).
+  async function switchTargetFaction(t, next){
+    if(!isOwner) return;   // owner-only (mirrors the server)
     const id = extractId(t.name);
     if(id == null){ toast('This row has no valid target ID.', 'err'); return; }
-    const next = nextFaction(t.faction);
-    if(next === t.faction) return;   // only one faction whitelisted — nothing to switch to
+    next = Number(next);
+    if(!next || next === t.faction) return;
     t.faction = next; render();
     const data = await mutate('setFaction', { id: String(id), faction: next });
     if(data.ok) toast('Moved ' + t.name.replace(/\s*\[\d+\]\s*$/, '') + ' to ' + factionName(next) + '.', 'ok');
@@ -1351,18 +1354,20 @@
     // Master-only curation (Faction switch + Shared + Manual + Delete); Refresh
     // stays open to everyone. All master actions are enforced server-side too.
     const tdAct = document.createElement('td'); tdAct.className = 'c-act';
-    const master = isMaster;
-    if(master){
-      if(factionIds().length > 1){   // only meaningful with 2+ factions to move between
-        const other = nextFaction(t.faction);
-        const fb = document.createElement('button');
-        fb.className = 'btn btn-small fac-switch';
-        fb.textContent = '⇄ ' + facShort(t.faction);
-        fb.style.color = facColor(t.faction); fb.style.borderColor = facColor(t.faction);
-        fb.title = 'Faction: ' + factionName(t.faction) + ' — click to move to ' + factionName(other);
-        fb.addEventListener('click', () => switchTargetFaction(t));
-        tdAct.appendChild(fb);
+    // Faction reassignment is OWNER-only, via a dropdown.
+    if(isOwner && factionIds().length > 1){
+      const sel = document.createElement('select');
+      sel.className = 'fac-select'; sel.title = 'Assign faction';
+      sel.style.color = facColor(t.faction); sel.style.borderColor = facColor(t.faction);
+      for(const fid of factionIds()){
+        const o = document.createElement('option'); o.value = String(fid); o.textContent = factionName(fid);
+        if(fid === t.faction) o.selected = true; sel.appendChild(o);
       }
+      sel.addEventListener('change', () => switchTargetFaction(t, sel.value));
+      tdAct.appendChild(sel);
+    }
+    // Other curation (Shared / Manual) — any master.
+    if(isMaster){
       tdAct.appendChild(sharedToggle(t, on => setShared(t, on)));
       tdAct.appendChild(manualToggle(t, on => setManual(t, on)));
     }
@@ -1375,7 +1380,7 @@
       ref.addEventListener('click', () => refreshOne(t));
       tdAct.appendChild(ref);
     }
-    if(master){   // delete restricted to the list master (enforced server-side too)
+    if(isMaster){   // delete restricted to masters (enforced server-side too)
       const del = document.createElement('button');
       del.className = 'icon-btn danger'; del.title = 'Remove target'; del.setAttribute('aria-label', 'Remove target'); del.textContent = '✕';
       del.addEventListener('click', () => { if(confirm('Remove ' + t.name + '?')) removeTarget(t); });
@@ -1916,15 +1921,17 @@
     // Faction <select> for the assign-master form
     const sel = $('#admin-master-faction');
     if(sel){ sel.innerHTML = ''; for(const fid of factionIds()){ const o = document.createElement('option'); o.value = String(fid); o.textContent = factionName(fid); sel.appendChild(o); } }
-    // Whitelisted factions
+    // Whitelisted factions (with a live colour picker each)
     const fb = $('#admin-factions'); if(fb){ fb.innerHTML = '';
       for(const fid of factionIds()){
         const row = document.createElement('div'); row.className = 'admin-row';
-        const dot = document.createElement('span'); dot.className = 'admin-dot'; dot.style.background = facColor(fid);
+        const col = document.createElement('input'); col.type = 'color'; col.className = 'admin-color';
+        col.value = normHex(facColor(fid)); col.title = 'Faction colour — pick to change';
+        col.addEventListener('change', () => adminSetColor(fid, col.value));
         const nm = document.createElement('span'); nm.className = 'admin-name'; nm.textContent = factionName(fid) + ' [' + fid + ']';
         const rm = document.createElement('button'); rm.className = 'icon-btn danger'; rm.textContent = '✕'; rm.title = 'Remove faction';
         rm.addEventListener('click', () => adminRemoveFaction(fid));
-        row.appendChild(dot); row.appendChild(nm); row.appendChild(rm); fb.appendChild(row);
+        row.appendChild(col); row.appendChild(nm); row.appendChild(rm); fb.appendChild(row);
       }
     }
     // Masters: owner (all factions) + each assigned player with per-faction chips
@@ -1956,6 +1963,13 @@
     if(!confirm('Remove ' + factionName(fid) + ' [' + fid + '] from the whitelist? Its members lose access, its war roster is hidden, and it is unassigned from all masters.')) return;
     const data = await adminCall('adminRemoveFaction', { factionId: fid });
     if(data.ok){ adminMasters = data.masters || adminMasters; renderAdmin(); toast('Faction removed.', 'ok'); }
+  }
+  // Coerce any colour to a #rrggbb for <input type=color> (falls back to grey).
+  function normHex(c){ return /^#[0-9a-fA-F]{6}$/.test(c) ? c : '#888888'; }
+  async function adminSetColor(fid, color){
+    const data = await adminCall('adminSetColor', { factionId: fid, color });
+    if(data.ok){ adminMasters = data.masters || adminMasters; renderAdmin(); toast('Colour updated.', 'ok'); }
+    else setAdminMsg(warErrMsg(data.error, data.detail));
   }
   // Assign a player as war master of the selected faction.
   async function adminAddMaster(){
