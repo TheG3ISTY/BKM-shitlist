@@ -1,6 +1,8 @@
-# Boykisser Meetup — Hit List
+# Faction Hit List — Boykisser Meetup & Static Hearts
 
-A single-file, zero-build static web app for managing a Torn City faction **target list ("hit list")**. It is gated to members of faction **Boykisser Meetup `[56875]`**, lets you keep notes per target, pulls **battle-stat estimates** from a community stats API, and surfaces the softest targets first.
+A single-file, zero-build static web app for managing a Torn City faction **target list ("hit list")**. It is gated to members of two factions, **Boykisser Meetup `[56875]`** and **Static Hearts `[45990]`**, lets you keep notes per target, pulls **battle-stat estimates** from a community stats API, and surfaces the softest targets first.
+
+Each target records **which faction added it** (auto-detected from the caller's key), plus a **Shared** flag for enemies of both factions. A faction filter (All / Boykisser Meetup / Static Hearts / Shared) colours rows by origin — Boykisser Meetup **blue**, Static Hearts **pink**, Shared **purple**. The **War List** carries a sub-tab per faction so both can run a war at once.
 
 Everything lives in **`index.html`** — vanilla HTML/CSS/JS, no frameworks, no npm, no bundler. It runs by double-clicking `index.html` and behaves the same when served from GitHub Pages.
 
@@ -32,8 +34,8 @@ The app shows a gate **before** anything else — the list, the add form, and th
 
 1. Paste **your own** Torn API key.
 2. The app calls `GET https://api.torn.com/user/?selections=profile&key=…` (the Torn API allows browser/CORS requests).
-3. If `faction.faction_id === 56875` → you're in. The key + a "verified" flag are saved in `localStorage` so the gate is skipped on reload.
-4. Any other faction (or no faction) → *"Access denied: this tool is for Boykisser Meetup [56875] members only."*
+3. If `faction.faction_id` is whitelisted (`56875` or `45990`) → you're in. The key + a "verified" flag are saved in `localStorage` so the gate is skipped on reload.
+4. Any other faction (or no faction) → *"Access denied: this tool is for members of Boykisser Meetup [56875] or Static Hearts [45990] only."*
 5. A bad key returns an `{ "error": … }` object → *"Invalid API key."*
 
 **A Public (limited/minimal) access key is enough.** This only reads *your own* faction to confirm membership — you do **not** need to share a Full-access key. Get or manage keys at **Torn → Settings → API Keys** (`https://www.torn.com/preferences.php#tab=api`).

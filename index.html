@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Boykisser Meetup — Hit List</title>
+<title>Faction Hit List — Boykisser Meetup &amp; Static Hearts</title>
 <style>
   /* ===== Theme ===== */
   :root{
@@ -23,6 +23,11 @@
     --danger:#fb7185;
     --ok:#34d399;
     --warn:#fbbf24;
+    /* Faction identity colours: Boykisser Meetup = blue, Static Hearts = pink,
+       Shared (enemy of both) = purple. */
+    --fac-bkm:#60a5fa;
+    --fac-sh:#f472b6;
+    --fac-shared:#c084fc;
     --radius:12px;
     --radius-sm:9px;
     --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
@@ -237,6 +242,37 @@
   tr.side-friendly .side-tag{color:var(--ok);border:1px solid rgba(52,211,153,.5)}
   tr.side-enemy .side-tag{color:#fda4af;border:1px solid rgba(251,113,133,.45)}
 
+  /* Hit-list faction identity: colour the row's left edge + a small tag by the
+     faction that added the target (BKM blue, Static Hearts pink, Shared purple). */
+  tr.fac-bkm{box-shadow:inset 3px 0 0 var(--fac-bkm)}
+  tr.fac-sh{box-shadow:inset 3px 0 0 var(--fac-sh)}
+  tr.fac-shared{box-shadow:inset 3px 0 0 var(--fac-shared)}
+  .fac-tag{
+    display:inline-block;font-family:var(--mono);font-size:.6rem;font-weight:700;letter-spacing:.04em;
+    margin-left:.45rem;padding:.05em .4em;border-radius:5px;vertical-align:middle;white-space:nowrap;
+  }
+  .fac-tag.t-bkm{color:var(--fac-bkm);border:1px solid rgba(96,165,250,.5)}
+  .fac-tag.t-sh{color:var(--fac-sh);border:1px solid rgba(244,114,182,.5)}
+  .fac-tag.t-shared{color:var(--fac-shared);border:1px solid rgba(192,132,252,.55)}
+
+  /* Segmented control (hit-list faction filter) */
+  .segmented{display:inline-flex;gap:.3rem;flex-wrap:wrap}
+  .seg-btn{
+    appearance:none;background:transparent;border:1px solid var(--border);color:var(--muted);
+    padding:.4rem .7rem;border-radius:var(--radius-sm);font-size:.82rem;font-weight:700;cursor:pointer;
+    transition:background .15s,color .15s,border-color .15s;white-space:nowrap;
+  }
+  .seg-btn:hover{background:var(--surface-2);color:var(--text)}
+  .seg-btn.active{color:var(--text);border-color:var(--border-2);background:var(--surface-3)}
+  .seg-btn.active.s-bkm{border-color:var(--fac-bkm);color:var(--fac-bkm)}
+  .seg-btn.active.s-sh{border-color:var(--fac-sh);color:var(--fac-sh)}
+  .seg-btn.active.s-shared{border-color:var(--fac-shared);color:var(--fac-shared)}
+
+  /* War sub-tabs (one roster per faction) */
+  .subtabs{margin-bottom:.9rem}
+  .subtab.active.s-bkm{background:linear-gradient(135deg,var(--fac-bkm),#3b82f6);color:#0a1020}
+  .subtab.active.s-sh{background:linear-gradient(135deg,var(--fac-sh),var(--fac-shared));color:#1a1020}
+
   /* Manual override: per-row toggle + editable stat */
   .manual-check{
     display:inline-flex;align-items:center;gap:.3rem;font-size:.72rem;color:var(--muted);
@@ -295,8 +331,8 @@
 <!-- ============ ACCESS GATE ============ -->
 <section id="gate" class="gate" hidden>
   <div class="gate-card">
-    <div class="brand"><span class="brand-mark">🎯</span><h1>Boykisser Meetup<span class="badge">#56875</span></h1></div>
-    <p class="gate-sub">Faction Hit List — members only</p>
+    <div class="brand"><span class="brand-mark">🎯</span><h1>Faction Hit List</h1></div>
+    <p class="gate-sub">Boykisser Meetup <span class="badge">#56875</span> &amp; Static Hearts <span class="badge" style="background:rgba(96,165,250,.16);color:var(--fac-bkm);border-color:rgba(96,165,250,.35)">#45990</span> — members only</p>
     <form id="gate-form" autocomplete="off">
       <label class="field-label" for="gate-key">Your Torn API key</label>
       <input id="gate-key" type="password" class="input" placeholder="Paste your Torn API key" autocomplete="off" spellcheck="false">
@@ -318,7 +354,7 @@
     <div class="topbar-left">
       <span class="brand-mark">🎯</span>
       <div>
-        <div class="app-title">Boykisser Meetup <span class="badge">#56875</span></div>
+        <div class="app-title" id="app-title">Faction Hit List</div>
         <div class="whoami" id="whoami"></div>
       </div>
     </div>
@@ -340,6 +376,14 @@
       <input id="add-input" class="input" placeholder="Add target — e.g. Frenemy [3981563]" spellcheck="false">
       <button class="btn btn-primary" type="submit">+ Add</button>
     </form>
+    <div class="toolbar">
+      <div class="segmented" id="hit-faction-seg" role="group" aria-label="Filter by faction">
+        <button type="button" class="seg-btn" data-fac="all">All</button>
+        <button type="button" class="seg-btn s-bkm" data-fac="56875">Boykisser Meetup</button>
+        <button type="button" class="seg-btn s-sh" data-fac="45990">Static Hearts</button>
+        <button type="button" class="seg-btn s-shared" data-fac="shared">Shared</button>
+      </div>
+    </div>
     <div class="toolbar">
       <button class="btn btn-update" id="update-btn" title="Fetch stats for all targets in one batched request, saved to the shared list">Global Refresh</button>
       <button class="btn" id="reload-btn" title="Reload the shared list to see others’ changes">↻ Reload</button>
@@ -376,6 +420,10 @@
   </div><!-- /#view-hitlist -->
 
   <div id="view-war" hidden>
+    <nav class="tabs subtabs" id="war-subtabs">
+      <button class="tab subtab s-bkm active" type="button" data-war="bkm">⚔️ Boykisser Meetup</button>
+      <button class="tab subtab s-sh" type="button" data-war="sh">⚔️ Static Hearts</button>
+    </nav>
     <section class="controls">
       <div id="war-master-controls" hidden>
         <div class="toolbar" style="margin-bottom:.7rem">
@@ -441,8 +489,19 @@
   'use strict';
 
   /* ===================== Config ===================== */
-  const FACTION_ID = 56875;
-  const FACTION_NAME = 'Boykisser Meetup';
+  // Whitelisted factions (must mirror the backend). Each has a display name and
+  // an identity colour: Boykisser Meetup = blue, Static Hearts = pink.
+  const FACTIONS = {
+    56875: { name:'Boykisser Meetup', short:'BKM', color:'var(--fac-bkm)', tag:'t-bkm' },
+    45990: { name:'Static Hearts',    short:'SH',  color:'var(--fac-sh)',  tag:'t-sh'  },
+  };
+  const DEFAULT_FACTION = 56875;                 // origin for legacy targets with no faction recorded
+  const factionName = fid => (FACTIONS[fid] && FACTIONS[fid].name) || ('Faction ' + fid);
+  // War rosters: one per faction. 'friendlyId' is that roster's OWN faction (green side).
+  const WAR_CFG = {
+    bkm: { key:'bkm', name:'Boykisser Meetup', friendlyId:56875, tabClass:'s-bkm' },
+    sh:  { key:'sh',  name:'Static Hearts',    friendlyId:45990, tabClass:'s-sh'  },
+  };
   const DEFAULT_STATS_URL = 'https://ffscouter.com/api/v1/get-stats?key={KEY}&targets={IDS}';
   // Shared Google Sheet backend (Apps Script web app). The list lives here so the
   // whole faction shares it; every call is verified server-side against faction 56875.
@@ -460,6 +519,8 @@
     human:'bk_hitlist_human', sort:'bk_hitlist_sort', mayRemove:'bk_hitlist_may_remove',
     statsKeyOverride:'bk_hitlist_stats_key',   // optional FFScouter key (if it differs from the Torn login key)
     warShowFriendly:'bk_war_show_friendly',    // war view: show our own faction (green) rows
+    myFaction:'bk_hitlist_my_faction',         // the verified member's own faction id
+    hitFaction:'bk_hitlist_faction_view',      // hit-list faction filter: 'all' | '56875' | '45990' | 'shared'
   };
 
   /* ===================== State ===================== */
@@ -471,14 +532,19 @@
   let syncing = false;
   let mayRemove = false;   // set by the server (caller's faction position); gates the delete button
   let syncCount = 0;       // outstanding background operations (drives the syncing badge)
+  let myFactionId = DEFAULT_FACTION;         // the verified member's own faction (server-confirmed)
+  let hitFaction = 'all';                    // hit-list faction filter: 'all' | 56875 | 45990 | 'shared'
 
-  // ---- War list (second view) ----
+  // ---- War list (second view) — one roster per faction ----
   let activeView = 'hitlist';               // 'hitlist' | 'war'
-  let isMaster = false;                     // server-confirmed: only TheG3ISTY may edit/activate the war list
-  let warList = [];
-  let warActive = false;                    // is the war list visible to the whole faction?
-  let warFactionId = 0;
-  let warFactionName = '';
+  let activeWar = 'bkm';                    // which war sub-tab: 'bkm' | 'sh'
+  // Per-roster state. `master` is server-confirmed edit rights for THIS roster.
+  const war = {
+    bkm: { list:[], active:false, master:false, targetId:0, targetName:'', generatedAt:'' },
+    sh:  { list:[], active:false, master:false, targetId:0, targetName:'', generatedAt:'' },
+  };
+  const curWar = () => war[activeWar];       // the roster currently shown
+  const anyMaster = () => war.bkm.master || war.sh.master;
   let warSort = { col:'stat', dir:'asc' };  // softest first, like the hit list
   let warFilterText = '';
   let warShowFriendly = true;               // war view: include our own faction (green) rows
@@ -525,6 +591,8 @@
       statHuman: typeof o.statHuman === 'string' ? o.statHuman : null,
       checkedAt: typeof o.checkedAt === 'string' ? o.checkedAt : null,
       manual: !!o.manual,
+      faction: (Number(o.faction) && FACTIONS[Number(o.faction)]) ? Number(o.faction) : DEFAULT_FACTION,
+      shared: !!o.shared,
     };
   }
   function exportTarget(t){
@@ -535,6 +603,8 @@
       statHuman: t.statHuman || null,
       checkedAt: t.checkedAt || null,
       manual: !!t.manual,
+      faction: t.faction || DEFAULT_FACTION,
+      shared: !!t.shared,
     };
   }
   function loadTargets(){
@@ -548,8 +618,23 @@
   function setSync(on){ syncCount = Math.max(0, syncCount + (on ? 1 : -1)); syncing = syncCount > 0; const b = $('#sync-badge'); if(b) b.hidden = !syncing; }
   // The server reports (per your faction position) whether you may remove targets.
   function noteRole(data){
-    if(data && typeof data.mayRemove === 'boolean'){ mayRemove = data.mayRemove; lsSet(LS.mayRemove, mayRemove ? '1' : '0'); }
-    if(data && typeof data.isMaster === 'boolean'){ isMaster = data.isMaster; updateTabs(); }
+    if(!data) return;
+    if(typeof data.mayRemove === 'boolean'){ mayRemove = data.mayRemove; lsSet(LS.mayRemove, mayRemove ? '1' : '0'); }
+    if(data.warMasters && typeof data.warMasters === 'object'){
+      war.bkm.master = !!data.warMasters.bkm;
+      war.sh.master = !!data.warMasters.sh;
+      updateTabs();
+    }
+    if(typeof data.myFactionId !== 'undefined' && Number(data.myFactionId)){
+      myFactionId = Number(data.myFactionId);
+      lsSet(LS.myFaction, String(myFactionId));
+      applyIdentity();
+    }
+  }
+  // Reflect the member's own faction in the header (title + badge colour).
+  function applyIdentity(){
+    const title = $('#app-title');
+    if(title) title.textContent = factionName(myFactionId) + ' · Hit List';
   }
 
   // POST an action to the Apps Script web app. The body is sent as text/plain so the
@@ -577,6 +662,7 @@
       missing_key:  'No key found — log out and back in.',
       busy:         'The list is busy — try again in a moment.',
       forbidden:    'Only Boykisser, Dommy Mommy, Leader, and Co-Leader can remove targets.',
+      not_verified_faction: 'Your key isn’t in a whitelisted faction.',
     })[code] || ('Shared-list error: ' + code + '.');
   }
   function handleSheetError(err, prefix){
@@ -678,14 +764,17 @@
     // Torn returns HTTP 200 with an {error} object on bad keys.
     if(data.error){ gateError('Invalid API key' + (data.error.error ? (' — ' + data.error.error) : '') + '.'); return; }
     const fid = (data.faction && typeof data.faction.faction_id !== 'undefined') ? Number(data.faction.faction_id) : 0;
-    if(fid === FACTION_ID){
+    if(FACTIONS[fid]){
       lsSet(LS.key, key);
       lsSet(LS.verified, '1');
+      lsSet(LS.myFaction, String(fid));
+      myFactionId = fid;
       const who = (data.name ? data.name : 'Member') + (data.player_id ? (' [' + data.player_id + ']') : '');
       lsSet(LS.user, who);
       unlock();
     } else {
-      gateError('Access denied: this tool is for ' + FACTION_NAME + ' [' + FACTION_ID + '] members only.');
+      const names = Object.keys(FACTIONS).map(id => FACTIONS[id].name + ' [' + id + ']').join(' or ');
+      gateError('Access denied: this tool is for members of ' + names + ' only.');
     }
   }
 
@@ -694,6 +783,11 @@
     $('#app').hidden = false;
     const who = lsGet(LS.user) || '';
     $('#whoami').textContent = who ? ('✓ Verified: ' + who) : '✓ Verified';
+    applyIdentity();
+    // Default the faction filter to the member's own faction the first time; a
+    // stored choice (set in init) wins on later loads.
+    if(!lsGet(LS.hitFaction)) setHitFaction(myFactionId, true);
+    else updateFactionSeg();
     render();                 // show cached list instantly
     await syncList();         // then pull the latest shared list from the Sheet
     syncWar();                // and the war list / master status (background)
@@ -970,6 +1064,35 @@
     });
   }
 
+  /* ===================== Faction filter (hit list) ===================== */
+  // hitFaction: 'all' (everything) | 56875 | 45990 (that faction's enemies, incl.
+  // shared) | 'shared' (only enemies of both factions).
+  function setHitFaction(v, silent){
+    hitFaction = (v === 'all' || v === 'shared') ? v : Number(v);
+    lsSet(LS.hitFaction, String(hitFaction));
+    updateFactionSeg();
+    if(!silent) render();
+  }
+  function updateFactionSeg(){
+    document.querySelectorAll('#hit-faction-seg .seg-btn').forEach(b => {
+      const v = b.dataset.fac;
+      const on = String(hitFaction) === v;
+      b.classList.toggle('active', on);
+    });
+  }
+  // Does a target belong in the current faction view?
+  function inFactionView(t){
+    if(hitFaction === 'all') return true;
+    if(hitFaction === 'shared') return !!t.shared;
+    return t.faction === hitFaction || !!t.shared;   // a faction view includes shared enemies
+  }
+  // Which faction identity a row is coloured/tagged by.
+  function facClass(t){ return t.shared ? 'fac-shared' : (t.faction === 45990 ? 'fac-sh' : 'fac-bkm'); }
+  function facTag(t){
+    if(t.shared) return { cls:'t-shared', text:'SHARED' };
+    return (t.faction === 45990) ? { cls:'t-sh', text:'SH' } : { cls:'t-bkm', text:'BKM' };
+  }
+
   /* ===================== Rendering ===================== */
   function linkEl(href, label, cls){
     if(!href){ const s = document.createElement('span'); s.className = 'na'; s.textContent = '—'; return s; }
@@ -1006,12 +1129,30 @@
     lbl.appendChild(cb); lbl.appendChild(document.createTextNode('Manual'));
     return lbl;
   }
+  // A "Shared" checkbox label. onToggle(checked) fires on change.
+  function sharedToggle(row, onToggle){
+    const lbl = document.createElement('label');
+    lbl.className = 'manual-check';
+    lbl.title = 'Shared: this target is an enemy of BOTH factions (shows in both faction views)';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = !!row.shared;
+    cb.addEventListener('change', () => onToggle(cb.checked));
+    lbl.appendChild(cb); lbl.appendChild(document.createTextNode('Shared'));
+    return lbl;
+  }
   // Toggle a hit-list target's manual override (open to any verified member, like Refresh/Add).
   async function setManual(t, on){
     const id = extractId(t.name);
     if(id == null){ toast('This row has no valid target ID.', 'err'); return; }
     t.manual = on; render();
     await mutate('setManual', { id: String(id), manual: on });
+  }
+  // Toggle a hit-list target's Shared flag (enemy of both factions). Any verified member.
+  async function setShared(t, on){
+    const id = extractId(t.name);
+    if(id == null){ toast('This row has no valid target ID.', 'err'); return; }
+    t.shared = on; render();
+    await mutate('setShared', { id: String(id), shared: on });
   }
   // Save a hand-entered stat for a hit-list target (implies manual override on).
   async function saveManualStat(t, raw){
@@ -1023,6 +1164,7 @@
   function buildRow(t){
     const id = extractId(t.name);   // derived links are generated from id, never stored
     const tr = document.createElement('tr');
+    tr.className = facClass(t);   // colour the left edge by originating faction / shared
 
     // Name (inline editable)
     const tdName = document.createElement('td'); tdName.className = 'c-name';
@@ -1032,6 +1174,10 @@
     nameIn.addEventListener('change', () => commitName(t, nameIn.value));
     nameIn.addEventListener('keydown', e => { if(e.key === 'Enter') nameIn.blur(); });
     tdName.appendChild(nameIn);
+    const ft = facTag(t);
+    const facEl = document.createElement('span'); facEl.className = 'fac-tag ' + ft.cls; facEl.textContent = ft.text;
+    facEl.title = t.shared ? 'Enemy of both factions' : ('Added by ' + factionName(t.faction));
+    tdName.appendChild(facEl);
     if(id != null){ const chip = document.createElement('span'); chip.className = 'id-chip'; chip.textContent = '#' + id; tdName.appendChild(chip); }
     tr.appendChild(tdName);
 
@@ -1091,8 +1237,9 @@
     tdAtk.appendChild(atk);
     tr.appendChild(tdAtk);
 
-    // Manual override + Refresh (this target only) + Delete
+    // Shared + Manual override + Refresh (this target only) + Delete
     const tdAct = document.createElement('td'); tdAct.className = 'c-act';
+    tdAct.appendChild(sharedToggle(t, on => setShared(t, on)));
     tdAct.appendChild(manualToggle(t, on => setManual(t, on)));
     if(!t.manual){   // manual rows are excluded from refreshes, so no per-row Refresh
       const ref = document.createElement('button');
@@ -1117,11 +1264,12 @@
     updateSortIndicators();
     const tbody = $('#tbody'); tbody.innerHTML = '';
     const ft = filterText.trim().toLowerCase();
-    let list = targets;
+    let list = targets.filter(inFactionView);       // faction segmented filter
+    const facFiltered = list.length !== targets.length;
     if(ft) list = list.filter(t => t.name.toLowerCase().includes(ft) || (t.why || '').toLowerCase().includes(ft));
     list = sortList(list, sort);
 
-    $('#count').textContent = targets.length + (targets.length === 1 ? ' target' : ' targets') + (ft ? ` (${list.length} shown)` : '');
+    $('#count').textContent = targets.length + (targets.length === 1 ? ' target' : ' targets') + ((ft || facFiltered) ? ` (${list.length} shown)` : '');
 
     if(list.length === 0){
       const tr = document.createElement('tr'); tr.className = 'empty-row';
@@ -1139,7 +1287,7 @@
 
   /* ===================== Import / Export ===================== */
   function exportJson(){
-    const payload = { version:1, faction_id:FACTION_ID, exported_at:fmtNow(), targets: targets.map(exportTarget) };
+    const payload = { version:2, faction_id:myFactionId, exported_at:fmtNow(), targets: targets.map(exportTarget) };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'targets.json';
@@ -1171,25 +1319,39 @@
       manual: !!o.manual,
     };
   }
-  function applyWarState(data){
+  // Apply a per-roster war response into war[wkey]. Non-masters only receive the
+  // roster/target when the roster is active; when it isn't visible we clear it so
+  // a just-deactivated list disappears for the faction.
+  function applyWarData(wkey, data){
     if(!data) return;
-    if(typeof data.active === 'boolean') warActive = data.active;
-    if(typeof data.factionId !== 'undefined') warFactionId = Number(data.factionId) || 0;
-    if(typeof data.factionName === 'string') warFactionName = data.factionName;
-    if(Array.isArray(data.war)) warList = data.war.map(normalizeWar).filter(Boolean);
+    const W = war[wkey]; if(!W) return;
+    if(typeof data.master === 'boolean') W.master = data.master;
+    if(typeof data.active === 'boolean') W.active = data.active;
+    const visible = W.active || W.master;
+    if(visible){
+      if(typeof data.factionId !== 'undefined') W.targetId = Number(data.factionId) || 0;
+      if(typeof data.factionName === 'string') W.targetName = data.factionName;
+      if(typeof data.generatedAt === 'string') W.generatedAt = data.generatedAt;
+      if(Array.isArray(data.roster)) W.list = data.roster.map(normalizeWar).filter(Boolean);
+    } else {
+      W.list = []; W.targetId = 0; W.targetName = ''; W.generatedAt = '';
+    }
     updateTabs();
-    renderWar();
+    if(wkey === activeWar) renderWar();
   }
-  // Pull war status/roster from the backend. Everyone learns whether it's active;
-  // the roster itself only comes back if it's active OR you're the master.
+  // Pull each roster's status from the backend. Everyone learns whether it's active;
+  // the roster itself only comes back if it's active OR you're that roster's master.
   async function syncWar(){
     setSync(true);
     try {
-      const data = await sheetCall('warStatus');
-      noteRole(data);
-      if(data.ok){
-        applyWarState(data);
-        if(warActive || isMaster) refreshStatuses(warList.map(w => extractId(w.name)).filter(x => x != null));
+      for(const wkey of ['bkm','sh']){
+        const data = await sheetCall('warStatus', { war: wkey });
+        noteRole(data);
+        if(data && data.ok){
+          applyWarData(wkey, data);
+          const W = war[wkey];
+          if(W.active || W.master) refreshStatuses(W.list.map(w => extractId(w.name)).filter(x => x != null));
+        }
       }
     } catch(err){
       /* war status is best-effort; don't nag on transient network blips */
@@ -1212,31 +1374,47 @@
     $('#tab-war').classList.toggle('active', view === 'war');
     if(view === 'war') renderWar(); else render();
   }
-  // The War tab is always visible to every verified faction member. What changes
-  // by identity is EDIT rights: only the master sees the controls, and the server
-  // enforces it regardless of the UI. Non-masters get a read-only view.
+  // Switch between the two war rosters (faction sub-tabs).
+  function switchWar(wkey){
+    activeWar = (wkey === 'sh') ? 'sh' : 'bkm';
+    document.querySelectorAll('#war-subtabs .subtab').forEach(b => b.classList.toggle('active', b.dataset.war === activeWar));
+    updateTabs();
+    renderWar();
+  }
+  const friendlyBtnLabel = () => '➕ Add ' + WAR_CFG[activeWar].name;
+  // Retarget the shared master controls at whichever war sub-tab is active.
+  function updateWarControls(){
+    const fb = $('#war-friendly-btn'); if(fb && !fb.disabled) fb.textContent = friendlyBtnLabel();
+    const fin = $('#war-faction-input'); if(fin) fin.placeholder = 'Enemy faction ID for ' + WAR_CFG[activeWar].name + ' — e.g. 12345';
+  }
+  // The War tab is always visible to every verified member. What changes by
+  // identity is EDIT rights: only the current roster's master sees the controls,
+  // and the server enforces it regardless of the UI.
   function updateTabs(){
-    const mc = $('#war-master-controls'); if(mc) mc.hidden = !isMaster;
+    const W = curWar();
+    const mc = $('#war-master-controls'); if(mc) mc.hidden = !W.master;
     const ab = $('#war-activate-btn');
     if(ab){
-      ab.textContent = warActive ? 'Deactivate (hide from faction)' : 'Activate for faction';
-      ab.classList.toggle('btn-ghost-danger', warActive);
+      ab.textContent = W.active ? 'Deactivate (hide from faction)' : 'Activate for faction';
+      ab.classList.toggle('btn-ghost-danger', W.active);
     }
     const who = $('#whoami');
-    if(who && isMaster && !/👑/.test(who.textContent)) who.textContent += ' · 👑 War master';
+    if(who && anyMaster() && !/👑/.test(who.textContent)) who.textContent += ' · 👑 War master';
+    updateWarControls();
     updateWarInfo();
   }
   function updateWarInfo(){
     const info = $('#war-info'), txt = $('#war-info-text'), pill = $('#war-active-pill');
     if(!info) return;
-    if(warFactionId){
+    const W = curWar();
+    if(W.targetId){
       info.hidden = false;
-      const enemyN = warList.filter(w => w.side !== 'friendly').length;
-      const friendlyN = warList.length - enemyN;
-      txt.textContent = '⚔️ ' + (warFactionName || ('Faction ' + warFactionId)) + ' [' + warFactionId + '] · '
+      const enemyN = W.list.filter(w => w.side !== 'friendly').length;
+      const friendlyN = W.list.length - enemyN;
+      txt.textContent = '⚔️ ' + WAR_CFG[activeWar].name + ' vs ' + (W.targetName || ('Faction ' + W.targetId)) + ' [' + W.targetId + '] · '
         + enemyN + ' enemy' + (friendlyN ? (' · ' + friendlyN + ' us') : '');
-      if(warActive){ pill.textContent = '● Live to faction'; pill.style.color = 'var(--ok)'; }
-      else if(isMaster){ pill.textContent = '○ Draft — only you can see this'; pill.style.color = 'var(--warn)'; }
+      if(W.active){ pill.textContent = '● Live to faction'; pill.style.color = 'var(--ok)'; }
+      else if(W.master){ pill.textContent = '○ Draft — only you can see this'; pill.style.color = 'var(--warn)'; }
       else pill.textContent = '';
     } else {
       info.hidden = true;
@@ -1263,30 +1441,33 @@
     toast(v ? 'FFScouter key saved — used for all stat lookups from this browser.' : 'FFScouter key cleared — back to your login key.', 'ok');
   }
 
-  // MASTER: pull the enemy faction roster, then (default) fetch stats in the same pass.
+  // MASTER: pull the enemy faction roster into the active roster, then (default)
+  // fetch stats in the same pass.
   async function generateWar(){
-    if(!isMaster) return;
+    const wkey = activeWar, W = war[wkey];
+    if(!W.master) return;
     const fid = parseInt(($('#war-faction-input').value || '').trim(), 10);
     if(!fid){ setWarStatusMsg('Enter a numeric faction ID.'); return; }
     setWarBusy(true, 'Fetching faction roster from Torn…');
     setSync(true);
     let data;
-    try { data = await sheetCall('warGenerate', { factionId: fid }); }
+    try { data = await sheetCall('warGenerate', { war: wkey, factionId: fid }); }
     catch(err){ setWarBusy(false, ''); setSync(false); handleSheetError(err, 'War generation failed.'); return; }
     setSync(false);
     noteRole(data);
     if(!data.ok){ setWarBusy(false, ''); toast(warErrMsg(data.error, data.detail), 'err'); return; }
-    applyWarState(data);
+    applyWarData(wkey, data);
     $('#war-faction-input').value = '';
-    toast('Pulled ' + warList.length + ' members from ' + warFactionName + '. Fetching stats…', 'ok');
-    await updateWarStats();                                   // roster + stats together (chosen default)
-    setWarBusy(false, 'Generated ' + warList.length + ' members · ' + fmtNow());
+    toast('Pulled ' + W.list.length + ' members from ' + W.targetName + '. Fetching stats…', 'ok');
+    await updateWarStats(wkey);                               // roster + stats together (chosen default)
+    setWarBusy(false, 'Generated ' + W.list.length + ' members · ' + fmtNow());
   }
-  // MASTER: fetch battle-stat estimates for the whole war roster, save to the War tab.
-  async function updateWarStats(){
-    if(!isMaster) return;
+  // MASTER: fetch battle-stat estimates for a roster, save to its War tab.
+  async function updateWarStats(wkeyArg){
+    const wkey = wkeyArg || activeWar, W = war[wkey];
+    if(!W.master) return;
     if(!statsKey()){ toast('No verified key found — log out and sign in again.', 'err'); return; }
-    const ids = [...new Set(warList.filter(w => !w.manual).map(w => extractId(w.name)).filter(x => x != null))];
+    const ids = [...new Set(W.list.filter(w => !w.manual).map(w => extractId(w.name)).filter(x => x != null))];
     if(ids.length === 0){ setWarStatusMsg('No war targets to update.'); return; }
     setWarStatusMsg('Fetching estimates…');
     let combined;
@@ -1298,41 +1479,43 @@
     setWarStatusMsg('Saving to the war list…');
     setSync(true);
     let data;
-    try { data = await sheetCall('warSetStats', { stats }); }
+    try { data = await sheetCall('warSetStats', { war: wkey, stats }); }
     catch(err){ setSync(false); warStatsError(err); return; }
     setSync(false);
     noteRole(data);
-    if(data.ok && Array.isArray(data.war)){ warList = data.war.map(normalizeWar).filter(Boolean); renderWar(); updateWarInfo(); }
+    if(data.ok && Array.isArray(data.roster)){ W.list = data.roster.map(normalizeWar).filter(Boolean); if(wkey === activeWar) renderWar(); updateWarInfo(); }
     refreshStatuses(ids);
     setWarStatusMsg('Updated ' + stats.length + ' of ' + ids.length + ' · ' + now);
     toast('War stats updated for ' + stats.length + ' member' + (stats.length === 1 ? '' : 's') + '.', 'ok');
   }
-  // MASTER: flip faction-wide visibility.
+  // MASTER: flip faction-wide visibility for the active roster.
   async function toggleWarActive(){
-    if(!isMaster) return;
-    const want = !warActive;
+    const wkey = activeWar, W = war[wkey];
+    if(!W.master) return;
+    const want = !W.active;
     if(!want && !confirm('Hide the war list from the faction again? Only you will see it.')) return;
     setSync(true);
     let data;
-    try { data = await sheetCall(want ? 'warActivate' : 'warDeactivate'); }
+    try { data = await sheetCall(want ? 'warActivate' : 'warDeactivate', { war: wkey }); }
     catch(err){ setSync(false); handleSheetError(err); return; }
     setSync(false);
     noteRole(data);
     if(!data.ok){ toast(warErrMsg(data.error), 'err'); return; }
-    applyWarState(data);
+    applyWarData(wkey, data);
     toast(want ? 'War list is now visible to the whole faction.' : 'War list hidden — only you can see it now.', want ? 'ok' : 'warn');
   }
-  // MASTER: wipe the war list entirely.
+  // MASTER: wipe the active roster entirely.
   async function clearWar(){
-    if(!isMaster) return;
-    if(!confirm('Clear the war list entirely? This removes the roster for everyone.')) return;
+    const wkey = activeWar, W = war[wkey];
+    if(!W.master) return;
+    if(!confirm('Clear the ' + WAR_CFG[wkey].name + ' war list entirely? This removes the roster for everyone.')) return;
     setSync(true);
     let data;
-    try { data = await sheetCall('warClear'); }
+    try { data = await sheetCall('warClear', { war: wkey }); }
     catch(err){ setSync(false); handleSheetError(err); return; }
     setSync(false);
     noteRole(data);
-    applyWarState(data);
+    applyWarData(wkey, data);
     setWarStatusMsg('');
     toast('War list cleared.', 'ok');
   }
@@ -1341,6 +1524,7 @@
   function buildWarRow(w){
     const id = extractId(w.name);
     const friendly = w.side === 'friendly';
+    const master = curWar().master;
     const tr = document.createElement('tr');
     tr.className = friendly ? 'side-friendly' : 'side-enemy';   // green (us) / red (them)
 
@@ -1365,7 +1549,7 @@
 
     // Stat estimate (hand-editable when the master turns on Manual override)
     const tdStat = document.createElement('td'); tdStat.className = 'c-stat';
-    if(w.manual && isMaster){
+    if(w.manual && master){
       tdStat.appendChild(manualStatInput(w, val => saveWarManualStat(w, val)));
     } else {
       const statSpan = document.createElement('span');
@@ -1413,7 +1597,7 @@
 
     // Manual override + per-row Refresh (master only) — one API request per member, like the hit list.
     const tdAct = document.createElement('td'); tdAct.className = 'c-act';
-    if(isMaster){
+    if(master){
       tdAct.appendChild(manualToggle(w, on => setWarManual(w, on)));
       if(!w.manual){   // manual rows are excluded from refreshes
         const ref = document.createElement('button');
@@ -1429,9 +1613,10 @@
 
     return tr;
   }
-  // MASTER: refresh a single war member's stats (one FFScouter request), save to the War tab.
+  // MASTER: refresh a single war member's stats (one FFScouter request), save to its War tab.
   async function refreshWarOne(w){
-    if(!isMaster || w._busy || w.manual) return;   // manual-override rows are never auto-fetched
+    const wkey = activeWar, W = war[wkey];
+    if(!W.master || w._busy || w.manual) return;   // manual-override rows are never auto-fetched
     const id = extractId(w.name);
     if(id == null){ toast('This row has no valid target ID.', 'err'); return; }
     if(!statsKey()){ toast('No verified key found — log out and sign in again.', 'err'); return; }
@@ -1440,9 +1625,9 @@
       await rateGate();
       const arr = await fetchChunk([id]);
       const byId = new Map(arr.filter(o => o && o.player_id != null).map(o => [Number(o.player_id), o]));
-      const data = await sheetCall('warSetStats', { stats: [ toStatEntry(id, byId.get(id) || null, fmtNow()) ] });
+      const data = await sheetCall('warSetStats', { war: wkey, stats: [ toStatEntry(id, byId.get(id) || null, fmtNow()) ] });
       noteRole(data);
-      if(data.ok && Array.isArray(data.war)) warList = data.war.map(normalizeWar).filter(Boolean);
+      if(data.ok && Array.isArray(data.roster)) W.list = data.roster.map(normalizeWar).filter(Boolean);
       refreshStatuses([id]);
       toast('Refreshed ' + w.name + '.', 'ok');
     } catch(err){
@@ -1451,53 +1636,56 @@
       delete w._busy; renderWar();
     }
   }
-  // MASTER: pull our own faction's roster (green side) and merge it into the war list,
-  // then fetch stats so both sides can be compared. Enemy side is left intact.
+  // MASTER: pull the active roster's OWN faction (green side) into it, then fetch
+  // stats so both sides can be compared. Enemy side is left intact.
   async function pullFriendly(){
-    if(!isMaster) return;
+    const wkey = activeWar, W = war[wkey];
+    if(!W.master) return;
     const btn = $('#war-friendly-btn');
     if(btn){ btn.disabled = true; btn.textContent = 'Adding…'; }
     setSync(true);
     let data;
-    try { data = await sheetCall('warPullFriendly'); }
-    catch(err){ setSync(false); if(btn){ btn.disabled = false; btn.textContent = '➕ Add my faction'; } handleSheetError(err, 'Couldn’t pull your faction.'); return; }
+    try { data = await sheetCall('warPullFriendly', { war: wkey }); }
+    catch(err){ setSync(false); if(btn){ btn.disabled = false; btn.textContent = friendlyBtnLabel(); } handleSheetError(err, 'Couldn’t pull that faction.'); return; }
     setSync(false);
     noteRole(data);
-    if(btn){ btn.disabled = false; btn.textContent = '➕ Add my faction'; }
+    if(btn){ btn.disabled = false; btn.textContent = friendlyBtnLabel(); }
     if(!data.ok){ toast(warErrMsg(data.error, data.detail), 'err'); return; }
-    applyWarState(data);
-    const n = warList.filter(w => w.side === 'friendly').length;
+    applyWarData(wkey, data);
+    const n = W.list.filter(w => w.side === 'friendly').length;
     warShowFriendly = true; lsSet(LS.warShowFriendly, '1');
     const tog = $('#war-friendly-toggle'); if(tog) tog.checked = true;
-    toast('Added your faction (' + n + ' member' + (n === 1 ? '' : 's') + '). Fetching stats…', 'ok');
-    await updateWarStats();
+    toast('Added ' + WAR_CFG[wkey].name + ' (' + n + ' member' + (n === 1 ? '' : 's') + '). Fetching stats…', 'ok');
+    await updateWarStats(wkey);
   }
   // MASTER: toggle a war member's manual override.
   async function setWarManual(w, on){
-    if(!isMaster) return;
+    const wkey = activeWar, W = war[wkey];
+    if(!W.master) return;
     const id = extractId(w.name);
     if(id == null){ toast('This row has no valid target ID.', 'err'); return; }
     w.manual = on; renderWar();
     setSync(true);
     try {
-      const data = await sheetCall('warSetManual', { id: String(id), manual: on });
+      const data = await sheetCall('warSetManual', { war: wkey, id: String(id), manual: on });
       noteRole(data);
-      if(data.ok && Array.isArray(data.war)){ warList = data.war.map(normalizeWar).filter(Boolean); renderWar(); }
+      if(data.ok && Array.isArray(data.roster)){ W.list = data.roster.map(normalizeWar).filter(Boolean); renderWar(); }
       else if(!data.ok) toast(warErrMsg(data.error), 'err');
     } catch(err){ toast(errToMsg(err), 'err'); }
     finally { setSync(false); }
   }
   // MASTER: save a hand-entered stat for a war member (implies manual override on).
   async function saveWarManualStat(w, raw){
-    if(!isMaster) return;
+    const wkey = activeWar, W = war[wkey];
+    if(!W.master) return;
     const id = extractId(w.name);
     if(id == null) return;
     const num = parseStatInput(raw);
     setSync(true);
     try {
-      const data = await sheetCall('warSetManual', { id: String(id), manual: true, statEstimate: num, statHuman: humanStat(num), checkedAt: 'manual · ' + fmtNow() });
+      const data = await sheetCall('warSetManual', { war: wkey, id: String(id), manual: true, statEstimate: num, statHuman: humanStat(num), checkedAt: 'manual · ' + fmtNow() });
       noteRole(data);
-      if(data.ok && Array.isArray(data.war)){ warList = data.war.map(normalizeWar).filter(Boolean); renderWar(); }
+      if(data.ok && Array.isArray(data.roster)){ W.list = data.roster.map(normalizeWar).filter(Boolean); renderWar(); }
       else if(!data.ok) toast(warErrMsg(data.error), 'err');
     } catch(err){ toast(errToMsg(err), 'err'); }
     finally { setSync(false); }
@@ -1516,16 +1704,17 @@
   }
   function renderWar(){
     const tbody = $('#war-tbody'); if(!tbody) return;
+    const W = curWar();
     updateWarSortIndicators();
     tbody.innerHTML = '';
     const ft = warFilterText.trim().toLowerCase();
-    let list = warList;
+    let list = W.list;
     if(!warShowFriendly) list = list.filter(w => w.side !== 'friendly');   // Hide/Unhide our own faction
     if(ft) list = list.filter(w => w.name.toLowerCase().includes(ft) || (w.position || '').toLowerCase().includes(ft));
     list = sortList(list, warSort);
 
-    const enemyN = warList.filter(w => w.side !== 'friendly').length;
-    const friendlyN = warList.length - enemyN;
+    const enemyN = W.list.filter(w => w.side !== 'friendly').length;
+    const friendlyN = W.list.length - enemyN;
     const cnt = $('#war-count');
     if(cnt){
       let base = enemyN + ' enemy' + (friendlyN ? (' · ' + friendlyN + ' us') : '');
@@ -1537,10 +1726,10 @@
     if(list.length === 0){
       const tr = document.createElement('tr'); tr.className = 'empty-row';
       const td = document.createElement('td'); td.colSpan = 9;
-      td.textContent = warFactionId
+      td.textContent = W.targetId
         ? 'No members match your filter.'
-        : (isMaster
-            ? 'No war list yet. Enter an enemy faction ID above and hit Generate — you’ll see it before anyone else does.'
+        : (W.master
+            ? 'No ' + WAR_CFG[activeWar].name + ' war list yet. Enter an enemy faction ID above and hit Generate — you’ll see it before anyone else does.'
             : 'The war list isn’t active right now.');
       tr.appendChild(td); tbody.appendChild(tr);
       return;
@@ -1555,6 +1744,10 @@
     try { const s = JSON.parse(lsGet(LS.sort) || ''); if(s && s.col && s.dir) sort = s; } catch(e){}
     displayHuman = lsGet(LS.human) === '1';
     mayRemove = lsGet(LS.mayRemove) === '1';   // last-known; server re-confirms on first sync
+    { const mf = Number(lsGet(LS.myFaction)); if(FACTIONS[mf]) myFactionId = mf; }   // last-known own faction
+    { const hf = lsGet(LS.hitFaction);                                                // last-known faction filter
+      if(hf === 'all' || hf === 'shared') hitFaction = hf;
+      else if(hf && FACTIONS[Number(hf)]) hitFaction = Number(hf); }
     targets = loadTargets();
 
     // Gate
@@ -1570,14 +1763,22 @@
     $('#human-toggle').addEventListener('change', e => setHuman(e.target.checked));
     $('#filter-input').addEventListener('input', e => { filterText = e.target.value; render(); });
 
+    // Hit-list faction filter (segmented control)
+    document.querySelectorAll('#hit-faction-seg .seg-btn').forEach(b =>
+      b.addEventListener('click', () => setHitFaction(b.dataset.fac)));
+    updateFactionSeg();
+
     // Tabs
     $('#tab-hitlist').addEventListener('click', () => switchView('hitlist'));
     $('#tab-war').addEventListener('click', () => switchView('war'));
+    // War faction sub-tabs (one roster per faction)
+    document.querySelectorAll('#war-subtabs .subtab').forEach(b =>
+      b.addEventListener('click', () => switchWar(b.dataset.war)));
 
     // War controls (master-only actions are also enforced server-side)
     $('#war-gen-form').addEventListener('submit', e => { e.preventDefault(); generateWar(); });
     $('#war-friendly-btn').addEventListener('click', pullFriendly);
-    $('#war-update-btn').addEventListener('click', updateWarStats);
+    $('#war-update-btn').addEventListener('click', () => updateWarStats());
     $('#war-activate-btn').addEventListener('click', toggleWarActive);
     $('#war-clear-btn').addEventListener('click', clearWar);
     $('#war-filter-input').addEventListener('input', e => { warFilterText = e.target.value; renderWar(); });
@@ -1589,6 +1790,7 @@
     $('#war-ffkey-save').addEventListener('click', saveFfKey);
     $('#war-ffkey-show').addEventListener('change', e => { $('#war-ffkey').type = e.target.checked ? 'text' : 'password'; });
     updateFfKeyStatus();
+    updateWarControls();   // set the friendly-button label + faction-input placeholder for the default sub-tab
 
     // Re-pull the shared lists when returning to the tab (debounced), so you see others' changes.
     let focusT = 0;
