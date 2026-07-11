@@ -502,6 +502,7 @@
     <button class="tab active" id="tab-hitlist" type="button">🎯 Hit List</button>
     <button class="tab" id="tab-war" type="button">⚔️ War List</button>
     <button class="tab" id="tab-calc" type="button">💰 Value Calc</button>
+    <button class="tab" id="tab-settings" type="button">⚙️ Settings</button>
   </nav>
 
   <div id="view-hitlist">
@@ -560,12 +561,6 @@
     </nav>
     <section class="controls">
       <div id="war-master-controls" hidden>
-        <div class="toolbar" style="margin-bottom:.7rem">
-          <input id="war-ffkey" class="input mono" type="password" placeholder="FFScouter API key (only if different from your login key)" spellcheck="false" style="max-width:380px;flex:0 1 380px">
-          <label class="checkline"><input type="checkbox" id="war-ffkey-show"> Show</label>
-          <button class="btn btn-small" id="war-ffkey-save" type="button">Save FFScouter key</button>
-          <span id="war-ffkey-status" class="small muted"></span>
-        </div>
         <form id="war-gen-form" class="add-form" autocomplete="off">
           <input id="war-faction-input" class="input" placeholder="Enemy faction ID — e.g. 12345" inputmode="numeric" spellcheck="false">
           <button class="btn btn-primary" id="war-gen-btn" type="submit">⚔️ Generate</button>
@@ -647,6 +642,29 @@
     <div id="basketView" style="display:none"></div>
     <div class="loading" id="loader" style="display:none"><div class="spinner"></div><div id="loaderTxt">Loading…</div></div>
   </div><!-- /#view-calc -->
+
+  <div id="view-settings" hidden>
+    <section class="controls" style="max-width:660px">
+      <label class="field-label" for="settings-key">Your Torn API key</label>
+      <form id="settings-key-form" class="add-form" autocomplete="off">
+        <input id="settings-key" type="password" class="input mono" placeholder="Paste a Torn API key" spellcheck="false" autocomplete="off">
+        <button class="btn btn-primary" id="settings-key-save" type="submit">Save</button>
+      </form>
+      <label class="checkline" style="margin-top:.55rem"><input type="checkbox" id="settings-key-show"> Show key</label>
+      <p class="help">Used for faction verification, live status, stat lookups, and the Value Calculator. Inventory auto-import needs a <strong>Minimal</strong>-access key (Public won't read your items). Stored only in this browser; sent only to <code>api.torn.com</code>. <a href="https://www.torn.com/preferences.php#tab=api" target="_blank" rel="noopener noreferrer">Get / manage a key →</a></p>
+      <p id="settings-key-msg" class="add-error" role="status" style="color:var(--muted)"></p>
+
+      <div id="settings-ff" hidden style="margin-top:1.6rem;padding-top:1.2rem;border-top:1px solid var(--border)">
+        <label class="field-label" for="war-ffkey">FFScouter API key <span class="badge">warmasters</span></label>
+        <form id="war-ffkey-form" class="add-form" autocomplete="off">
+          <input id="war-ffkey" class="input mono" type="password" placeholder="FFScouter key (only if different from your Torn key)" spellcheck="false" autocomplete="off">
+          <button class="btn" id="war-ffkey-save" type="submit">Save</button>
+        </form>
+        <label class="checkline" style="margin-top:.55rem"><input type="checkbox" id="war-ffkey-show"> Show</label>
+        <p class="help">Battle-stat lookups (FFScouter) use this key. Set <strong>your own</strong> so war-stat calls aren't all funneled through one person's key and rate-limited. <span id="war-ffkey-status" class="small muted"></span></p>
+      </div>
+    </section>
+  </div><!-- /#view-settings -->
 </div>
 
 <!-- ============ ADMIN (owner only) ============ -->
@@ -1646,12 +1664,45 @@
     $('#view-hitlist').hidden = view !== 'hitlist';
     $('#view-war').hidden = view !== 'war';
     $('#view-calc').hidden = view !== 'calc';
+    $('#view-settings').hidden = view !== 'settings';
     $('#tab-hitlist').classList.toggle('active', view === 'hitlist');
     $('#tab-war').classList.toggle('active', view === 'war');
     $('#tab-calc').classList.toggle('active', view === 'calc');
+    $('#tab-settings').classList.toggle('active', view === 'settings');
     if(view === 'war') renderWar();
     else if(view === 'calc') loadCalc();
+    else if(view === 'settings') openSettings();
     else render();
+  }
+  // Prep the Settings tab: prefill the current key, show FFScouter only for warmasters.
+  function openSettings(){
+    const k = $('#settings-key'); if(k) k.value = statsKey();
+    const ff = $('#settings-ff'); if(ff) ff.hidden = !isMaster;
+    const msg = $('#settings-key-msg'); if(msg){ msg.textContent = ''; }
+    updateFfKeyStatus();
+  }
+  // Update the verified Torn key live (re-verifies faction, re-syncs, reloads calc).
+  async function updateKey(raw){
+    const key = (raw || '').trim();
+    const msg = $('#settings-key-msg');
+    const setMsg = (t, c) => { if(msg){ msg.style.color = c || 'var(--muted)'; msg.textContent = t; } };
+    if(!key){ setMsg('Enter a key.', 'var(--danger)'); return; }
+    setMsg('Verifying…');
+    let data;
+    try { const res = await fetch(`https://api.torn.com/user/?selections=profile&key=${encodeURIComponent(key)}&comment=BoykisserHitList`); data = await res.json(); }
+    catch(e){ setMsg('Couldn’t reach the Torn API.', 'var(--danger)'); return; }
+    if(!data || typeof data !== 'object'){ setMsg('Unexpected response from Torn.', 'var(--danger)'); return; }
+    if(data.error){ setMsg('Invalid key' + (data.error.error ? (' — ' + data.error.error) : '') + '.', 'var(--danger)'); return; }
+    const fid = (data.faction && typeof data.faction.faction_id !== 'undefined') ? Number(data.faction.faction_id) : 0;
+    if(fid && !FACTIONS[fid]) await fetchConfig();
+    if(!(FACTIONS[fid] || Number(data.player_id) === OWNER_ID)){ setMsg('That key isn’t in a whitelisted faction.', 'var(--danger)'); return; }
+    lsSet(LS.key, key); lsSet(LS.myFaction, String(fid)); myFactionId = fid;
+    const who = (data.name ? data.name : 'Member') + (data.player_id ? (' [' + data.player_id + ']') : '');
+    lsSet(LS.user, who); $('#whoami').textContent = '✓ Verified: ' + who; applyIdentity();
+    $('#settings-key').value = key;
+    setMsg('Key updated ✓', 'var(--ok)');
+    syncList(); syncWar();
+    if(window.calcReload) window.calcReload();   // re-pull market + inventory with the new key
   }
   // Build the war faction sub-tabs from the current whitelist.
   function renderWarSubtabs(){
@@ -1685,6 +1736,7 @@
   function updateTabs(){
     const W = curWar();
     const mc = $('#war-master-controls'); if(mc) mc.hidden = !isWarMaster(activeWar);
+    const sf = $('#settings-ff'); if(sf) sf.hidden = !isMaster;   // FFScouter key: warmasters only
     const ab = $('#war-activate-btn');
     if(ab){
       ab.textContent = W.active ? 'Deactivate (hide from faction)' : 'Activate for faction';
@@ -2171,6 +2223,9 @@
     $('#tab-hitlist').addEventListener('click', () => switchView('hitlist'));
     $('#tab-war').addEventListener('click', () => switchView('war'));
     $('#tab-calc').addEventListener('click', () => switchView('calc'));
+    $('#tab-settings').addEventListener('click', () => switchView('settings'));
+    $('#settings-key-form').addEventListener('submit', e => { e.preventDefault(); updateKey($('#settings-key').value); });
+    $('#settings-key-show').addEventListener('change', e => { $('#settings-key').type = e.target.checked ? 'text' : 'password'; });
     renderWarSubtabs();   // war faction sub-tabs (generated from the whitelist)
 
     // War controls (master-only actions are also enforced server-side)
@@ -2185,7 +2240,7 @@
     $('#war-friendly-toggle').addEventListener('change', e => { warShowFriendly = e.target.checked; lsSet(LS.warShowFriendly, warShowFriendly ? '1' : '0'); renderWar(); });
     $('#war-human-toggle').addEventListener('change', e => setHuman(e.target.checked));
     $('#war-ffkey').value = lsGet(LS.statsKeyOverride) || '';
-    $('#war-ffkey-save').addEventListener('click', saveFfKey);
+    $('#war-ffkey-form').addEventListener('submit', e => { e.preventDefault(); saveFfKey(); });
     $('#war-ffkey-show').addEventListener('change', e => { $('#war-ffkey').type = e.target.checked ? 'text' : 'password'; });
     updateFfKeyStatus();
     updateWarControls();   // set the friendly-button label + faction-input placeholder for the default sub-tab
@@ -2264,7 +2319,7 @@
     try{
       const r=await fetch('https://api.torn.com/user/?selections=inventory&key='+encodeURIComponent(key));
       const data=await r.json();
-      if(data.error){ invError=(data.error.code===16)?'access':(data.error.error||'error'); }
+      if(data.error){ invError=(data.error.code===16)?'access':('Torn error '+data.error.code+': '+(data.error.error||'unknown')); }
       else {
         const priceOf={}; allItems.forEach(i=>priceOf[String(i.id)]=i.market_value);
         (data.inventory||[]).forEach(it=>{
@@ -2274,7 +2329,7 @@
           invItems.push({id,name:it.name||'?',type:it.type||'Other',qty:Number(it.quantity)||0,market_price:price});
         });
       }
-    }catch(e){ invError='error'; }
+    }catch(e){ invError='request failed'+(e&&e.message?(' ('+e.message+')'):''); }
 
     $('loader').style.display='none'; if(rb){rb.disabled=false;}
     if(gotMarket||invItems.length){
