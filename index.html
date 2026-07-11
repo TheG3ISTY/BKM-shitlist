@@ -261,18 +261,19 @@
   .fac-switch.f-sh{border-color:rgba(244,114,182,.55);color:var(--fac-sh)}
   .fac-switch.f-sh:hover{background:rgba(244,114,182,.12)}
 
-  /* Segmented control (hit-list faction filter) */
-  .segmented{display:inline-flex;gap:.3rem;flex-wrap:wrap}
-  .seg-btn{
-    appearance:none;background:transparent;border:1px solid var(--border);color:var(--muted);
-    padding:.4rem .7rem;border-radius:var(--radius-sm);font-size:.82rem;font-weight:700;cursor:pointer;
-    transition:background .15s,color .15s,border-color .15s;white-space:nowrap;
+  /* Faction filter checkboxes (hit list): toggle each bucket independently */
+  #hit-faction-filters{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+  .filter-lead{font-size:.8rem;color:var(--faint);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-right:.15rem}
+  .fac-check{
+    border:1px solid var(--border);border-radius:var(--radius-sm);padding:.35rem .65rem;
+    font-weight:700;font-size:.85rem;transition:border-color .15s,background .15s;
   }
-  .seg-btn:hover{background:var(--surface-2);color:var(--text)}
-  .seg-btn.active{color:var(--text);border-color:var(--border-2);background:var(--surface-3)}
-  .seg-btn.active.s-bkm{border-color:var(--fac-bkm);color:var(--fac-bkm)}
-  .seg-btn.active.s-sh{border-color:var(--fac-sh);color:var(--fac-sh)}
-  .seg-btn.active.s-shared{border-color:var(--fac-shared);color:var(--fac-shared)}
+  .fac-check:hover{background:var(--surface-2)}
+  .fac-check.c-bkm{color:var(--fac-bkm)} .fac-check.c-bkm input{accent-color:var(--fac-bkm)}
+  .fac-check.c-sh{color:var(--fac-sh)}   .fac-check.c-sh input{accent-color:var(--fac-sh)}
+  .fac-check.c-shared{color:var(--fac-shared)} .fac-check.c-shared input{accent-color:var(--fac-shared)}
+  /* dim a bucket that's currently switched off */
+  .fac-check:has(input:not(:checked)){opacity:.5;color:var(--muted)}
 
   /* War sub-tabs (one roster per faction) */
   .subtabs{margin-bottom:.9rem}
@@ -383,11 +384,11 @@
       <button class="btn btn-primary" type="submit">+ Add</button>
     </form>
     <div class="toolbar">
-      <div class="segmented" id="hit-faction-seg" role="group" aria-label="Filter by faction">
-        <button type="button" class="seg-btn" data-fac="all">All</button>
-        <button type="button" class="seg-btn s-bkm" data-fac="56875">Boykisser Meetup</button>
-        <button type="button" class="seg-btn s-sh" data-fac="45990">Static Hearts</button>
-        <button type="button" class="seg-btn s-shared" data-fac="shared">Shared</button>
+      <div id="hit-faction-filters" role="group" aria-label="Filter by faction">
+        <span class="filter-lead">Show</span>
+        <label class="checkline fac-check c-bkm"><input type="checkbox" data-fac="bkm" checked> Boykisser Meetup</label>
+        <label class="checkline fac-check c-sh"><input type="checkbox" data-fac="sh" checked> Static Hearts</label>
+        <label class="checkline fac-check c-shared"><input type="checkbox" data-fac="shared" checked> Shared</label>
       </div>
     </div>
     <div class="toolbar">
@@ -526,7 +527,7 @@
     statsKeyOverride:'bk_hitlist_stats_key',   // optional FFScouter key (if it differs from the Torn login key)
     warShowFriendly:'bk_war_show_friendly',    // war view: show our own faction (green) rows
     myFaction:'bk_hitlist_my_faction',         // the verified member's own faction id
-    hitFaction:'bk_hitlist_faction_view',      // hit-list faction filter: 'all' | '56875' | '45990' | 'shared'
+    hitFaction:'bk_hitlist_faction_view',      // hit-list faction filter: comma list of enabled buckets (bkm,sh,shared)
   };
 
   /* ===================== State ===================== */
@@ -539,7 +540,9 @@
   let mayRemove = false;   // set by the server (caller's faction position); gates the delete button
   let syncCount = 0;       // outstanding background operations (drives the syncing badge)
   let myFactionId = DEFAULT_FACTION;         // the verified member's own faction (server-confirmed)
-  let hitFaction = 'all';                    // hit-list faction filter: 'all' | 56875 | 45990 | 'shared'
+  // Hit-list faction filter: independent checkboxes, one per bucket. A target is
+  // in exactly one bucket — Shared (shared=true), or BKM / Static Hearts by origin.
+  let hitFilters = { bkm:true, sh:true, shared:true };
 
   // ---- War list (second view) — one roster per faction ----
   let activeView = 'hitlist';               // 'hitlist' | 'war'
@@ -791,10 +794,7 @@
     const who = lsGet(LS.user) || '';
     $('#whoami').textContent = who ? ('✓ Verified: ' + who) : '✓ Verified';
     applyIdentity();
-    // Default the faction filter to the member's own faction the first time; a
-    // stored choice (set in init) wins on later loads.
-    if(!lsGet(LS.hitFaction)) setHitFaction(myFactionId, true);
-    else updateFactionSeg();
+    updateFactionChecks();    // reflect stored filter (defaults to all buckets on)
     render();                 // show cached list instantly
     await syncList();         // then pull the latest shared list from the Sheet
     syncWar();                // and the war list / master status (background)
@@ -1072,27 +1072,21 @@
   }
 
   /* ===================== Faction filter (hit list) ===================== */
-  // hitFaction: 'all' (everything) | 56875 | 45990 (that faction's enemies, incl.
-  // shared) | 'shared' (only enemies of both factions).
-  function setHitFaction(v, silent){
-    hitFaction = (v === 'all' || v === 'shared') ? v : Number(v);
-    lsSet(LS.hitFaction, String(hitFaction));
-    updateFactionSeg();
-    if(!silent) render();
+  // Which bucket a target falls in: 'shared' | 'sh' | 'bkm'.
+  function facBucket(t){ return t.shared ? 'shared' : (t.faction === 45990 ? 'sh' : 'bkm'); }
+  function setHitFilter(key, on){
+    hitFilters[key] = !!on;
+    lsSet(LS.hitFaction, Object.keys(hitFilters).filter(k => hitFilters[k]).join(','));
+    render();
   }
-  function updateFactionSeg(){
-    document.querySelectorAll('#hit-faction-seg .seg-btn').forEach(b => {
-      const v = b.dataset.fac;
-      const on = String(hitFaction) === v;
-      b.classList.toggle('active', on);
+  // Reflect the current filter state onto the checkboxes.
+  function updateFactionChecks(){
+    document.querySelectorAll('#hit-faction-filters input[data-fac]').forEach(cb => {
+      cb.checked = !!hitFilters[cb.dataset.fac];
     });
   }
-  // Does a target belong in the current faction view?
-  function inFactionView(t){
-    if(hitFaction === 'all') return true;
-    if(hitFaction === 'shared') return !!t.shared;
-    return t.faction === hitFaction || !!t.shared;   // a faction view includes shared enemies
-  }
+  // Does a target belong in the current view? (Its bucket's checkbox is on.)
+  function inFactionView(t){ return !!hitFilters[facBucket(t)]; }
   // Which faction identity a row is coloured/tagged by.
   function facClass(t){ return t.shared ? 'fac-shared' : (t.faction === 45990 ? 'fac-sh' : 'fac-bkm'); }
   function facTag(t){
@@ -1773,9 +1767,8 @@
     displayHuman = lsGet(LS.human) === '1';
     mayRemove = lsGet(LS.mayRemove) === '1';   // last-known; server re-confirms on first sync
     { const mf = Number(lsGet(LS.myFaction)); if(FACTIONS[mf]) myFactionId = mf; }   // last-known own faction
-    { const hf = lsGet(LS.hitFaction);                                                // last-known faction filter
-      if(hf === 'all' || hf === 'shared') hitFaction = hf;
-      else if(hf && FACTIONS[Number(hf)]) hitFaction = Number(hf); }
+    { const hf = lsGet(LS.hitFaction);                                                // last-known faction filter (comma list of enabled buckets)
+      if(hf !== null){ const on = new Set(hf.split(',')); ['bkm','sh','shared'].forEach(k => hitFilters[k] = on.has(k)); } }
     targets = loadTargets();
 
     // Gate
@@ -1792,9 +1785,9 @@
     $('#filter-input').addEventListener('input', e => { filterText = e.target.value; render(); });
 
     // Hit-list faction filter (segmented control)
-    document.querySelectorAll('#hit-faction-seg .seg-btn').forEach(b =>
-      b.addEventListener('click', () => setHitFaction(b.dataset.fac)));
-    updateFactionSeg();
+    document.querySelectorAll('#hit-faction-filters input[data-fac]').forEach(cb =>
+      cb.addEventListener('change', () => setHitFilter(cb.dataset.fac, cb.checked)));
+    updateFactionChecks();
 
     // Tabs
     $('#tab-hitlist').addEventListener('click', () => switchView('hitlist'));
