@@ -80,6 +80,7 @@ function doPost(e) {
       case 'setStats': out = setStats(body); break;
       case 'setManual': out = setManual(body); break;
       case 'setShared': out = setShared(body); break;
+      case 'setFaction': out = master ? setFaction(body) : forbidden(); break;
       // ---- War list (per-roster; body.war selects 'bkm' | 'sh') ----
       case 'warStatus':       out = warStatus(member, wkey); break;
       case 'warGenerate':     out = master ? warGenerate(body, wkey)     : forbidden(); break;
@@ -300,6 +301,18 @@ function setShared(body) {
   var row = findRowById(sh, id);
   if (row === -1) return { ok: false, error: 'not_found', targets: readAll() };
   sh.getRange(row, HEADERS.indexOf('Shared') + 1).setValue(!!body.shared);
+  return { ok: true, targets: readAll() };
+}
+// MASTER: reassign which faction a target belongs to (move an enemy between
+// Boykisser Meetup and Static Hearts). Only a whitelisted faction id is accepted.
+function setFaction(body) {
+  var fac = Number(body.faction || 0);
+  if (!FACTIONS.hasOwnProperty(String(fac))) return { ok: false, error: 'bad_faction', targets: readAll() };
+  var id = String(body.id || '');
+  var sh = sheet();
+  var row = findRowById(sh, id);
+  if (row === -1) return { ok: false, error: 'not_found', targets: readAll() };
+  sh.getRange(row, HEADERS.indexOf('Faction') + 1).setValue(fac);
   return { ok: true, targets: readAll() };
 }
 

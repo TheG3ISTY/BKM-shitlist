@@ -254,6 +254,12 @@
   .fac-tag.t-bkm{color:var(--fac-bkm);border:1px solid rgba(96,165,250,.5)}
   .fac-tag.t-sh{color:var(--fac-sh);border:1px solid rgba(244,114,182,.5)}
   .fac-tag.t-shared{color:var(--fac-shared);border:1px solid rgba(192,132,252,.55)}
+  /* Master-only per-row faction switch (BKM ⇄ Static Hearts) */
+  .fac-switch{font-family:var(--mono);font-size:.72rem;padding:.28rem .5rem;margin-right:.35rem;vertical-align:middle}
+  .fac-switch.f-bkm{border-color:rgba(96,165,250,.55);color:var(--fac-bkm)}
+  .fac-switch.f-bkm:hover{background:rgba(96,165,250,.12)}
+  .fac-switch.f-sh{border-color:rgba(244,114,182,.55);color:var(--fac-sh)}
+  .fac-switch.f-sh:hover{background:rgba(244,114,182,.12)}
 
   /* Segmented control (hit-list faction filter) */
   .segmented{display:inline-flex;gap:.3rem;flex-wrap:wrap}
@@ -663,6 +669,7 @@
       busy:         'The list is busy — try again in a moment.',
       forbidden:    'Only Boykisser, Dommy Mommy, Leader, and Co-Leader can remove targets.',
       not_verified_faction: 'Your key isn’t in a whitelisted faction.',
+      bad_faction:  'Unknown faction for that target.',
     })[code] || ('Shared-list error: ' + code + '.');
   }
   function handleSheetError(err, prefix){
@@ -1154,6 +1161,18 @@
     t.shared = on; render();
     await mutate('setShared', { id: String(id), shared: on });
   }
+  // The "other" whitelisted faction (there are exactly two, so this is a toggle).
+  function otherFaction(fid){ const ids = Object.keys(FACTIONS).map(Number); return ids.find(f => f !== fid) || ids[0]; }
+  // MASTER: reassign a target's faction (move an enemy BKM ⇄ Static Hearts).
+  async function switchTargetFaction(t){
+    if(!war.bkm.master) return;   // gated to the list master (mirrors the server)
+    const id = extractId(t.name);
+    if(id == null){ toast('This row has no valid target ID.', 'err'); return; }
+    const next = otherFaction(t.faction);
+    t.faction = next; render();
+    const data = await mutate('setFaction', { id: String(id), faction: next });
+    if(data.ok) toast('Moved ' + t.name.replace(/\s*\[\d+\]\s*$/, '') + ' to ' + factionName(next) + '.', 'ok');
+  }
   // Save a hand-entered stat for a hit-list target (implies manual override on).
   async function saveManualStat(t, raw){
     const id = extractId(t.name);
@@ -1237,8 +1256,17 @@
     tdAtk.appendChild(atk);
     tr.appendChild(tdAtk);
 
-    // Shared + Manual override + Refresh (this target only) + Delete
+    // Faction switch (master) + Shared + Manual override + Refresh + Delete
     const tdAct = document.createElement('td'); tdAct.className = 'c-act';
+    if(war.bkm.master){   // list master only (enforced server-side too)
+      const other = otherFaction(t.faction);
+      const fb = document.createElement('button');
+      fb.className = 'btn btn-small fac-switch ' + (t.faction === 45990 ? 'f-sh' : 'f-bkm');
+      fb.textContent = '⇄ ' + (FACTIONS[t.faction] ? FACTIONS[t.faction].short : '?');
+      fb.title = 'Faction: ' + factionName(t.faction) + ' — click to move to ' + factionName(other);
+      fb.addEventListener('click', () => switchTargetFaction(t));
+      tdAct.appendChild(fb);
+    }
     tdAct.appendChild(sharedToggle(t, on => setShared(t, on)));
     tdAct.appendChild(manualToggle(t, on => setManual(t, on)));
     if(!t.manual){   // manual rows are excluded from refreshes, so no per-row Refresh
