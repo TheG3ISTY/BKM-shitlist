@@ -2276,7 +2276,7 @@
 <script>
 (function(){
   'use strict';
-  let allItems=[], invItems=[], invError='', invDbg='', basket=[], pct=90;
+  let allItems=[], invItems=[], invError='', invErrDetail='', basket=[], pct=90;
   let sortField='market_value', sortDir=-1, invSortF='total', invSortD=-1;
   let currentTab='inv', basketUid=0, calcLoaded=false;
   const $=id=>document.getElementById(id);
@@ -2305,6 +2305,32 @@
     for(const k in data){ const v=data[k]; if(v&&typeof v==='object'&&!Array.isArray(v)){ for(const k2 in v){ r=itemsIn(v[k2]); if(r) return r; } } }
     return [];
   }
+  // Fetch inventory, trying API v2 first then v1. Returns {items, status, detail}.
+  // status: 'ok' | 'unavailable' (Torn migration) | 'access' (key too low) | 'error'.
+  async function fetchInventory(key, catalog){
+    const priceOf={}; catalog.forEach(i=>priceOf[String(i.id)]=i.market_value);
+    const mapItems=data=>extractItems(data).map(it=>{
+      const id=String(it.ID!=null?it.ID:(it.id!=null?it.id:(it.item_id!=null?it.item_id:(it._k!=null?it._k:''))));
+      if(!id) return null;
+      const qty=Number(it.quantity!=null?it.quantity:(it.qty!=null?it.qty:0))||0;
+      const price=Number(it.market_price!=null?it.market_price:(it.value!=null?it.value:0))||priceOf[id]||0;
+      return {id,name:it.name||'?',type:it.type||'Other',qty,market_price:price};
+    }).filter(Boolean);
+    // v2 (Torn's migration target). Any non-error response means it's live.
+    try{
+      const d=await (await fetch('https://api.torn.com/v2/user/inventory?key='+encodeURIComponent(key))).json();
+      if(d && !d.error) return {items:mapItems(d), status:'ok'};
+      if(d && d.error && d.error.code===16) return {items:[], status:'access'};
+      // other v2 errors (e.g. 21 "Incorrect category" = not live yet) -> try v1
+    }catch(e){}
+    // v1 fallback.
+    try{
+      const d=await (await fetch('https://api.torn.com/user/?selections=inventory&key='+encodeURIComponent(key))).json();
+      if(d && d.error) return {items:[], status:(d.error.code===16?'access':'error'), detail:'Torn error '+d.error.code+': '+(d.error.error||'')};
+      if(d && typeof d.inventory==='string') return {items:[], status:'unavailable', detail:d.inventory};   // "no longer available"
+      return {items:mapItems(d), status:'ok'};
+    }catch(e){ return {items:[], status:'error', detail:(e&&e.message)||'request failed'}; }
+  }
 
   // Hooks the (s)hitlist calls when the Value Calc tab opens.
   window.calcInit=function(){ if(calcLoaded)return; calcLoaded=true; loadAll(); };
@@ -2332,25 +2358,13 @@
       gotMarket=true;
     }catch(e){ showErr(e.message); }
 
-    // 2) Your inventory (needs a Minimal+ key; price from inventory, catalog fallback).
-    invError=''; invItems=[]; invDbg='';
-    try{
-      const r=await fetch('https://api.torn.com/user/?selections=inventory&key='+encodeURIComponent(key));
-      const txt=await r.text(); invDbg=txt.slice(0,600);
-      let data; try{ data=JSON.parse(txt); }catch(_){ throw new Error('non-JSON response'); }
-      if(data.error){ invError=(data.error.code===16)?'access':('Torn error '+data.error.code+': '+(data.error.error||'unknown')); }
-      else {
-        const priceOf={}; allItems.forEach(i=>priceOf[String(i.id)]=i.market_value);
-        // Find the item list wherever Torn put it (array or object-map, possibly nested).
-        extractItems(data).forEach(it=>{
-          const id=String(it.ID!=null?it.ID:(it.id!=null?it.id:(it.item_id!=null?it.item_id:(it._k!=null?it._k:''))));
-          if(!id) return;
-          const qty=Number(it.quantity!=null?it.quantity:(it.qty!=null?it.qty:0))||0;
-          const price=Number(it.market_price!=null?it.market_price:(it.value!=null?it.value:0))||priceOf[id]||0;
-          invItems.push({id,name:it.name||'?',type:it.type||'Other',qty,market_price:price});
-        });
-      }
-    }catch(e){ invError='request failed'+(e&&e.message?(' ('+e.message+')'):''); }
+    // 2) Your inventory. NOTE: Torn removed the v1 `inventory` selection during a
+    //    system migration ("no longer available") and the v2 endpoint isn't live
+    //    yet ("Incorrect category"). fetchInventory() tries v2 then v1 and reports
+    //    a clear status; it will just start working once Torn restores either one.
+    invError=''; invErrDetail=''; invItems=[];
+    const invRes=await fetchInventory(key, allItems);
+    invItems=invRes.items; invError=(invRes.status==='ok')?'':invRes.status; invErrDetail=invRes.detail||'';
 
     $('loader').style.display='none'; if(rb){rb.disabled=false;}
     if(gotMarket||invItems.length){
@@ -2407,10 +2421,11 @@
 
   function renderInv(){
     if(invError){
-      const msg=(invError==='access')
-        ? 'Your API key can’t read your inventory. Log out and sign back in with a <b style="color:var(--grn)">Minimal-access</b> (or higher) Torn key to auto-import your items.'
-        : ('Couldn’t load your inventory — '+esc(invError)+'.');
-      $('invView').innerHTML='<div class="tw"><div class="empty"><div class="big">🔒</div>'+msg+'</div></div>';
+      let icon='🔒', msg;
+      if(invError==='unavailable'){ icon='🛠️'; msg='Torn has <b>temporarily disabled</b> inventory API access — a migration on <em>their</em> end that affects every tool, not just this one. Auto-import will start working again on its own once they restore it; nothing to fix here. Meanwhile use <b style="color:var(--grn)">All Items</b> + the manual <b>Selling Basket</b>.'; }
+      else if(invError==='access'){ msg='Your API key can’t read your inventory. Set a <b style="color:var(--grn)">Minimal-access</b> (or higher) key in the <b>⚙️ Settings</b> tab.'; }
+      else { msg='Couldn’t load your inventory — '+esc(invErrDetail||invError)+'.'; }
+      $('invView').innerHTML='<div class="tw"><div class="empty"><div class="big">'+icon+'</div>'+msg+'</div></div>';
       return;
     }
     const q=$('sIn').value.toLowerCase().trim();
@@ -2444,7 +2459,7 @@
         '<td class="pm">'+fmt(it.market_price)+'</td>'+
         '<td style="color:var(--gold);font-weight:600">'+fmt(it.total)+'</td>'+
         '</tr>'
-      ).join('')+'</tbody></table></div></div>'+(list.length===0?'<div class="empty"><div class="big">🎒</div>'+(q?'No items match.':'Your inventory is empty.')+((!q&&invDbg)?'<div style="margin-top:16px;font-size:10px;color:var(--txm);word-break:break-all;max-width:720px;margin:16px auto 0;text-align:left;line-height:1.6">debug — raw response starts with:<br>'+esc(invDbg)+'</div>':'')+'</div>':'');
+      ).join('')+'</tbody></table></div></div>'+(list.length===0?'<div class="empty"><div class="big">🎒</div>'+(q?'No items match.':'Your inventory is empty.')+'</div>':'');
   }
 
   function renderMarket(){
