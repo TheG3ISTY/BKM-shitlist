@@ -512,7 +512,7 @@
   const DEFAULT_STATS_URL = 'https://ffscouter.com/api/v1/get-stats?key={KEY}&targets={IDS}';
   // Shared Google Sheet backend (Apps Script web app). The list lives here so the
   // whole faction shares it; every call is verified server-side against faction 56875.
-  const SHEET_API = 'https://script.google.com/macros/s/AKfycbxqCHZ0PR9lNpsXr8Lc-zAtOvkCSZwXAp4ajaKx0RVlAhK1g_mp2yHtIQqlEhs4Ozbn2A/exec';
+  const SHEET_API = 'https://script.google.com/macros/s/AKfycbx3eP1Ba8M4-d5jm4CEzly_tidwx34EudP3BQR3hljwEYkDXM-E5pRe3iMiBBCQvf6dNg/exec';
   const CHUNK_SIZE = 200;          // FFScouter allows up to 205 IDs / request
   const CHUNK_SPACING_MS = 3500;   // spacing when chunking -> well under 20/min
   const RATE_MAX = 20;             // hard cap: 20 requests / 60s / IP (FFScouter)
