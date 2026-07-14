@@ -259,6 +259,55 @@
   #view-calc .spinner{width:36px;height:36px;border:3px solid var(--brd);border-top-color:var(--red);border-radius:50%;margin:0 auto 16px;animation:tvcspin .7s linear infinite}
   @keyframes tvcspin{to{transform:rotate(360deg)}}
 
+  /* ===== Buy-Mug calculator (red/mono theme, scoped under #view-mug) ===== */
+  #view-mug{
+    --bg:#07070c;--surface:#0e0e16;--s2:#15151f;--s3:#1c1c2a;--brd:#252538;
+    --tx:#e4e4ee;--txd:#8585a0;--txm:#4e4e68;--red:#ff3848;--rg:rgba(255,56,72,.25);
+    --grn:#22d97b;--gold:#f0c530;--ora:#ff8c38;
+    max-width:1120px;margin:0 auto;color:var(--tx);font-family:'JetBrains Mono','Courier New',ui-monospace,monospace;
+  }
+  #view-mug *{box-sizing:border-box}
+  #view-mug .mug-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--brd);flex-wrap:wrap;gap:10px}
+  #view-mug .mug-title{display:flex;align-items:center;gap:14px}
+  #view-mug .mug-ico{width:40px;height:40px;background:linear-gradient(135deg,#ff3848,#ff6840);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:0 0 24px var(--rg)}
+  #view-mug .mug-h1{font-size:16px;font-weight:700;letter-spacing:3px;text-transform:uppercase}
+  #view-mug .mug-sub{font-size:10px;color:var(--txm);letter-spacing:1.5px}
+  #view-mug .st{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--grn);font-weight:700;letter-spacing:1px}
+  #view-mug .dot{width:8px;height:8px;border-radius:50%;background:var(--txm)}
+  #view-mug .dot.on{background:var(--grn);box-shadow:0 0 10px rgba(34,217,123,.5)}
+  #view-mug .mpanel{background:var(--surface);border:1px solid var(--brd);border-radius:12px;padding:18px;margin-bottom:18px}
+  #view-mug .mpanel h3{margin:0 0 14px;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--txd)}
+  #view-mug .mbtn{height:38px;padding:0 18px;border:1px solid var(--brd);border-radius:8px;font-family:inherit;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;background:var(--s2);color:var(--tx);transition:all .15s;white-space:nowrap}
+  #view-mug .mbtn:hover{background:var(--s3)}
+  #view-mug .mbtn.red{background:var(--red);border-color:transparent;color:#fff}
+  #view-mug .mbtn.red:hover{filter:brightness(1.12);box-shadow:0 0 18px var(--rg)}
+  #view-mug .mbtn.ghost{background:transparent;color:var(--txm)}
+  #view-mug .mbtn.dang{background:rgba(255,56,72,.08);border-color:rgba(255,56,72,.25);color:var(--red)}
+  #view-mug .mbtn.dang:hover{background:rgba(255,56,72,.18)}
+  #view-mug table{width:100%;border-collapse:collapse;min-width:560px}
+  #view-mug .mtw{overflow-x:auto;border:1px solid var(--brd);border-radius:10px}
+  #view-mug th{background:var(--s2);padding:11px 12px;text-align:left;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;color:var(--txm);border-bottom:1px solid var(--brd);white-space:nowrap}
+  #view-mug td{padding:8px 12px;font-size:12px;border-bottom:1px solid rgba(37,37,56,.6);color:var(--tx);white-space:nowrap}
+  #view-mug tr:last-child td{border-bottom:none}
+  #view-mug .mnum{text-align:right;font-family:inherit}
+  #view-mug .minp{width:100%;height:34px;background:var(--s2);border:1px solid var(--brd);border-radius:6px;padding:0 10px;color:var(--tx);font-family:inherit;font-size:12px;outline:none}
+  #view-mug .minp:focus{border-color:var(--red)}
+  #view-mug .minp.money{text-align:right}
+  #view-mug .msaved{color:var(--grn);font-weight:700;text-align:right;font-family:inherit}
+  #view-mug .mrm{width:26px;height:26px;border-radius:6px;border:1px solid rgba(255,56,72,.2);background:rgba(255,56,72,.08);color:var(--red);cursor:pointer;font-family:inherit}
+  #view-mug .mrm:hover{background:var(--red);color:#fff}
+  #view-mug tfoot td{border-top:2px solid var(--brd);font-weight:700}
+  #view-mug .mtrade-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px}
+  #view-mug .mtrade-row .minp{flex:1;min-width:180px;width:auto}
+  #view-mug .mchips{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  #view-mug .mchip{background:var(--surface);border:1px solid var(--brd);border-radius:8px;padding:8px 14px;min-width:120px}
+  #view-mug .mchip .cl{display:block;font-size:9px;color:var(--txm);text-transform:uppercase;letter-spacing:1px}
+  #view-mug .mchip .cv{font-size:15px;font-weight:700}
+  #view-mug .mchip.big .cv{font-size:22px;color:var(--grn)}
+  #view-mug .mempty{text-align:center;color:var(--txm);padding:34px 16px}
+  #view-mug .mgate{text-align:center;color:var(--txm);padding:60px 20px}
+  #view-mug .mgate .big{font-size:30px;display:block;margin-bottom:12px}
+
   /* ===== Gate ===== */
   .gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.2rem}
   .gate-card{
@@ -552,6 +601,7 @@
         <button class="navdrop-item" id="tab-war" type="button" role="menuitem">⚔️ War List</button>
         <button class="navdrop-item" id="tab-payout" type="button" role="menuitem" hidden>💵 Payout</button>
         <button class="navdrop-item" id="tab-calc" type="button" role="menuitem">💰 Value Calc</button>
+        <button class="navdrop-item" id="tab-mug" type="button" role="menuitem" hidden>🥊 Buy-Mug</button>
         <button class="navdrop-item" id="tab-settings" type="button" role="menuitem">⚙️ Settings</button>
       </div>
     </div>
@@ -706,6 +756,14 @@
     <div class="loading" id="loader" style="display:none"><div class="spinner"></div><div id="loaderTxt">Loading…</div></div>
   </div><!-- /#view-calc -->
 
+  <div id="view-mug" hidden>
+    <div class="mug-head">
+      <div class="mug-title"><span class="mug-ico">🥊</span><div><div class="mug-h1">Buy-Mug Calculator</div><div class="mug-sub">Buy price − mug = your savings · logged over time</div></div></div>
+      <div class="st"><div class="dot on" id="mug-dot"></div><span id="mug-total-hdr">$0 saved</span></div>
+    </div>
+    <div id="mug-body"></div>
+  </div><!-- /#view-mug -->
+
   <div id="view-settings" hidden>
     <section class="controls" style="max-width:660px">
       <label class="field-label" for="settings-key">Your Torn API key</label>
@@ -756,6 +814,14 @@
       </form>
       <p class="help">A war master controls only their assigned faction's war roster. Any master can also curate the shared hit list. The owner controls everything and can't be removed.</p>
 
+      <label class="field-label" style="margin-top:1.3rem">Buy-Mug calculator — grant access</label>
+      <div id="admin-mug" class="admin-list"></div>
+      <form id="admin-mug-form" class="add-form" autocomplete="off" style="margin-top:.6rem">
+        <input id="admin-mug-input" class="input" placeholder="Player ID or Name [ID]" spellcheck="false">
+        <button class="btn btn-primary" type="submit">+ Grant</button>
+      </form>
+      <p class="help">The Buy-Mug tab is invisible to everyone by default — it only appears for players you grant here (each keeps their own private savings ledger). You (owner) always have it.</p>
+
       <p id="admin-msg" class="test-out"></p>
     </div>
   </div>
@@ -798,7 +864,7 @@
   const DEFAULT_STATS_URL = 'https://ffscouter.com/api/v1/get-stats?key={KEY}&targets={IDS}';
   // Shared Google Sheet backend (Apps Script web app). Every call is verified
   // server-side against the current whitelist.
-  const SHEET_API = 'https://script.google.com/macros/s/AKfycbwzWw7Bc_6iS7HpSgvj45fAqCYmbcVm48s232y0pBLR_59fBE29mzBCHiYFP8qasXg6SA/exec';
+  const SHEET_API = 'https://script.google.com/macros/s/AKfycbyi4eTbaNQT7bL2jSgLo-EarZywJc41bNgA_l2pEzHTExGsHwvjUuy3VOxhF9Mx__6swg/exec';
   const CHUNK_SIZE = 200;          // FFScouter allows up to 205 IDs / request
   const CHUNK_SPACING_MS = 3500;   // spacing when chunking -> well under 20/min
   const RATE_MAX = 20;             // hard cap: 20 requests / 60s / IP (FFScouter)
@@ -935,6 +1001,7 @@
     if(typeof data.isMaster === 'boolean') isMaster = data.isMaster;
     if(typeof data.isOwner === 'boolean') isOwner = data.isOwner;
     if(Array.isArray(data.warMasterOf)) warMasterOf = new Set(data.warMasterOf.map(Number));
+    if(typeof data.mugAccess==='boolean') mugAccess = data.mugAccess;
     updateTabs();
     updateAdminButton();
     if(typeof data.myFactionId !== 'undefined' && Number(data.myFactionId)){
@@ -1736,16 +1803,19 @@
     $('#view-war').hidden = view !== 'war';
     $('#view-payout').hidden = view !== 'payout';
     $('#view-calc').hidden = view !== 'calc';
+    $('#view-mug').hidden = view !== 'mug';
     $('#view-settings').hidden = view !== 'settings';
     $('#tab-hitlist').classList.toggle('active', view === 'hitlist');
     $('#tab-war').classList.toggle('active', view === 'war');
     $('#tab-payout').classList.toggle('active', view === 'payout');
     $('#tab-calc').classList.toggle('active', view === 'calc');
+    $('#tab-mug').classList.toggle('active', view === 'mug');
     $('#tab-settings').classList.toggle('active', view === 'settings');
     updateNavTrigger();
     if(view === 'war') renderWar();
     else if(view === 'payout') loadPayout();
     else if(view === 'calc') loadCalc();
+    else if(view === 'mug') loadMug();
     else if(view === 'settings') openSettings();
     else render();
   }
@@ -1823,6 +1893,7 @@
     const mc = $('#war-master-controls'); if(mc) mc.hidden = !isWarMaster(activeWar);
     const sf = $('#settings-ff'); if(sf) sf.hidden = !isMaster;   // FFScouter key: warmasters only
     const pt = $('#tab-payout'); if(pt) pt.hidden = payoutFactionIds().length === 0;
+    const mt = $('#tab-mug'); if(mt) mt.hidden = !mugAccess;   // Buy-Mug: allowlisted players only
     const ab = $('#war-activate-btn');
     if(ab){
       ab.textContent = W.active ? 'Deactivate (hide from faction)' : 'Activate for faction';
@@ -2420,6 +2491,129 @@
     applyPayoutData(fid,data); payoutDirty=false; toast('Payout cleared.','ok');
   }
 
+  /* ===================== Buy-Mug calculator ===================== */
+  let mugAccess=false, mugLoaded=false;
+  let mugItems=[{name:'',buy:0,mug:0}];
+  let mugTrades=[], mugTotal=0;
+
+  async function syncMug(){ setSync(true); try{ const d=await sheetCall('mugStatus'); noteRole(d); if(d&&d.ok) applyMugData(d); }catch(err){} finally{ setSync(false); } }
+  function applyMugData(d){
+    if(typeof d.access==='boolean') mugAccess=d.access;
+    if(Array.isArray(d.trades)) mugTrades=d.trades;
+    if(typeof d.total==='number') mugTotal=d.total;
+    mugLoaded=true; renderMug();
+  }
+  function loadMug(){ if(!mugLoaded) syncMug(); renderMug(); }
+  function mugItemSaved(it){ return pnum(it.buy)-pnum(it.mug); }
+  function mugTradeTotals(){ let buy=0,mug=0; mugItems.forEach(it=>{ buy+=pnum(it.buy); mug+=pnum(it.mug); }); return {buy,mug,saved:buy-mug}; }
+
+  function renderMug(){
+    const box=$('#mug-body'); if(!box) return;
+    const hdr=$('#mug-total-hdr'); if(hdr) hdr.textContent=money(mugTotal)+' saved';
+    if(!mugAccess){ box.innerHTML='<div class="mgate"><span class="big">🔒</span>You don’t have access to the Buy-Mug calculator.<br><span style="font-size:11px;color:var(--txm)">Ask the owner to grant you access in the Admin panel.</span></div>'; return; }
+    box.innerHTML='';
+    box.appendChild(buildMugCalc());
+    box.appendChild(buildMugLedger());
+  }
+  function buildMugCalc(){
+    const P=document.createElement('div'); P.className='mpanel';
+    const h=document.createElement('h3'); h.textContent='This trade'; P.appendChild(h);
+    const wrap=document.createElement('div'); wrap.className='mtw';
+    const table=document.createElement('table');
+    table.innerHTML='<thead><tr><th>Item (optional)</th><th class="mnum">Buy price</th><th class="mnum">Mug amount</th><th class="mnum">Saved</th><th></th></tr></thead>';
+    const tbody=document.createElement('tbody');
+    mugItems.forEach((it,idx)=> tbody.appendChild(buildMugItemRow(it,idx)));
+    table.appendChild(tbody);
+    const T=mugTradeTotals();
+    const tfoot=document.createElement('tfoot');
+    tfoot.innerHTML='<tr><td>Trade total</td><td class="mnum" id="mug-tbuy">'+money(T.buy)+'</td><td class="mnum" id="mug-tmug">'+money(T.mug)+'</td><td class="msaved" id="mug-tsaved">'+money(T.saved)+'</td><td></td></tr>';
+    table.appendChild(tfoot);
+    wrap.appendChild(table); P.appendChild(wrap);
+    const row=document.createElement('div'); row.className='mtrade-row';
+    const add=document.createElement('button'); add.className='mbtn'; add.textContent='+ Item'; add.addEventListener('click',()=>{ mugItems.push({name:'',buy:0,mug:0}); renderMug(); });
+    const note=document.createElement('input'); note.className='minp'; note.id='mug-note'; note.placeholder='Note (who / what, optional)';
+    const log=document.createElement('button'); log.className='mbtn red'; log.textContent='✓ Log this trade'; log.addEventListener('click',()=>logMugTrade());
+    const msg=document.createElement('span'); msg.id='mug-msg'; msg.style.cssText='font-size:11px;color:var(--txm)';
+    row.appendChild(add); row.appendChild(note); row.appendChild(log); row.appendChild(msg);
+    P.appendChild(row);
+    return P;
+  }
+  function buildMugItemRow(it,idx){
+    const tr=document.createElement('tr');
+    const nameTd=document.createElement('td');
+    const nm=document.createElement('input'); nm.className='minp'; nm.value=it.name||''; nm.placeholder='item'; nm.addEventListener('input',()=>{ it.name=nm.value; }); nameTd.appendChild(nm); tr.appendChild(nameTd);
+    const mkMoney=(field)=>{ const td=document.createElement('td'); const inp=document.createElement('input'); inp.className='minp money'; inp.inputMode='decimal'; inp.value=it[field]?String(it[field]):''; inp.placeholder='0';
+      inp.addEventListener('input',()=>{ it[field]=pnum(inp.value); refreshMugTrade(); }); td.appendChild(inp); return td; };
+    tr.appendChild(mkMoney('buy')); tr.appendChild(mkMoney('mug'));
+    const savedTd=document.createElement('td'); savedTd.className='msaved'; savedTd.dataset.mugSaved=String(idx); savedTd.textContent=money(mugItemSaved(it)); tr.appendChild(savedTd);
+    const rmTd=document.createElement('td'); const rm=document.createElement('button'); rm.className='mrm'; rm.textContent='✕'; rm.title='Remove item';
+    rm.addEventListener('click',()=>{ mugItems.splice(idx,1); if(!mugItems.length) mugItems.push({name:'',buy:0,mug:0}); renderMug(); }); rmTd.appendChild(rm); tr.appendChild(rmTd);
+    return tr;
+  }
+  function refreshMugTrade(){
+    mugItems.forEach((it,idx)=>{ const el=document.querySelector('[data-mug-saved="'+idx+'"]'); if(el) el.textContent=money(mugItemSaved(it)); });
+    const T=mugTradeTotals(), b=$('#mug-tbuy'), m=$('#mug-tmug'), s=$('#mug-tsaved');
+    if(b)b.textContent=money(T.buy); if(m)m.textContent=money(T.mug); if(s)s.textContent=money(T.saved);
+  }
+  function buildMugLedger(){
+    const P=document.createElement('div'); P.className='mpanel';
+    const h=document.createElement('h3'); h.textContent='Savings ledger'; P.appendChild(h);
+    const chips=document.createElement('div'); chips.className='mchips';
+    chips.innerHTML='<div class="mchip big"><span class="cl">Total saved</span><span class="cv">'+money(mugTotal)+'</span></div><div class="mchip"><span class="cl">Trades</span><span class="cv">'+mugTrades.length+'</span></div>';
+    P.appendChild(chips);
+    if(!mugTrades.length){ const e=document.createElement('div'); e.className='mempty'; e.textContent='No logged trades yet. Fill in a trade above and hit “Log this trade”.'; P.appendChild(e); return P; }
+    const wrap=document.createElement('div'); wrap.className='mtw';
+    const table=document.createElement('table');
+    table.innerHTML='<thead><tr><th>When</th><th>Note</th><th class="mnum">Buy</th><th class="mnum">Mug</th><th class="mnum">Saved</th><th></th></tr></thead>';
+    const tbody=document.createElement('tbody');
+    mugTrades.forEach((t,idx)=>{
+      const tr=document.createElement('tr');
+      [[t.at,''],[t.note||'—',''],[money(t.buy),'mnum'],[money(t.mug),'mnum'],[money(t.saved),'msaved']].forEach(([txt,cls])=>{ const td=document.createElement('td'); if(cls)td.className=cls; td.textContent=txt; tr.appendChild(td); });
+      const rmTd=document.createElement('td'); const rm=document.createElement('button'); rm.className='mrm'; rm.textContent='✕'; rm.title='Delete'; rm.addEventListener('click',()=>deleteMugTrade(idx)); rmTd.appendChild(rm); tr.appendChild(rmTd);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody); wrap.appendChild(table); P.appendChild(wrap);
+    const act=document.createElement('div'); act.style.marginTop='12px';
+    const clr=document.createElement('button'); clr.className='mbtn dang'; clr.textContent='Clear ledger'; clr.addEventListener('click',()=>clearMug());
+    act.appendChild(clr); P.appendChild(act);
+    return P;
+  }
+  function setMugMsg(s){ const el=$('#mug-msg'); if(el) el.textContent=s||''; }
+  async function logMugTrade(){
+    if(!mugAccess) return;
+    const T=mugTradeTotals();
+    if(!T.buy && !T.mug){ setMugMsg('Nothing to log.'); return; }
+    const note=(($('#mug-note')&&$('#mug-note').value)||'').trim();
+    setMugMsg('Logging…'); setSync(true);
+    let d;
+    try{ d=await sheetCall('mugAddTrade',{buyTotal:T.buy, mugTotal:T.mug, note}); }
+    catch(err){ setSync(false); setMugMsg(''); handleSheetError(err,'Log failed.'); return; }
+    setSync(false); noteRole(d);
+    if(!d.ok){ setMugMsg(''); toast('Couldn’t log the trade.','err'); return; }
+    applyMugData(d);
+    mugItems=[{name:'',buy:0,mug:0}]; renderMug();
+    toast('Trade logged — '+money(T.saved)+' saved.','ok');
+  }
+  async function deleteMugTrade(idx){
+    if(!mugAccess) return;
+    setSync(true);
+    let d;
+    try{ d=await sheetCall('mugDeleteTrade',{index:idx}); }
+    catch(err){ setSync(false); handleSheetError(err); return; }
+    setSync(false); noteRole(d);
+    if(d.ok) applyMugData(d);
+  }
+  async function clearMug(){
+    if(!mugAccess) return;
+    if(!confirm('Clear your entire savings ledger? This can’t be undone.')) return;
+    setSync(true);
+    let d;
+    try{ d=await sheetCall('mugClear'); }
+    catch(err){ setSync(false); handleSheetError(err); return; }
+    setSync(false); noteRole(d);
+    if(d.ok) applyMugData(d);
+  }
+
   /* ===================== Live config + Admin (owner only) ===================== */
   // Pull the current whitelist (public GET) so the gate + UI reflect live changes,
   // including factions added after this page loaded. Falls back to cached/default.
@@ -2439,13 +2633,14 @@
     finally { setSync(false); }
   }
   let adminMasters = {};   // { playerId: [factionIds] }
+  let adminMugUsers = [];  // [playerId] granted Buy-Mug access
   function setAdminMsg(s){ const el = $('#admin-msg'); if(el) el.textContent = s || ''; }
   function openAdmin(){ if(!isOwner) return; $('#admin').hidden = false; loadAdmin(); }
   function closeAdmin(){ $('#admin').hidden = true; }
   async function loadAdmin(){
     setAdminMsg('Loading…');
     const data = await adminCall('adminConfig');
-    if(data.ok){ adminMasters = (data.masters && typeof data.masters === 'object') ? data.masters : {}; renderAdmin(); setAdminMsg(''); }
+    if(data.ok){ adminMasters = (data.masters && typeof data.masters === 'object') ? data.masters : {}; adminMugUsers = Array.isArray(data.mugUsers) ? data.mugUsers : []; renderAdmin(); setAdminMsg(''); }
     else setAdminMsg('Could not load config (owner only).');
   }
   function factionChip(fid, onRemove){
@@ -2488,6 +2683,20 @@
         row.appendChild(nm); row.appendChild(chips); row.appendChild(rm); mb.appendChild(row);
       }
     }
+    // Buy-Mug access allowlist
+    const gb = $('#admin-mug'); if(gb){ gb.innerHTML = '';
+      const orow = document.createElement('div'); orow.className = 'admin-row';
+      const onm = document.createElement('span'); onm.className = 'admin-name'; onm.textContent = '[' + OWNER_ID + '] · owner (you)';
+      orow.appendChild(onm); gb.appendChild(orow);
+      for(const pid of adminMugUsers){
+        if(Number(pid) === OWNER_ID) continue;
+        const row = document.createElement('div'); row.className = 'admin-row';
+        const nm = document.createElement('span'); nm.className = 'admin-name'; nm.textContent = '[' + pid + ']';
+        const rm = document.createElement('button'); rm.className = 'icon-btn danger'; rm.textContent = '✕'; rm.title = 'Revoke Buy-Mug access';
+        rm.addEventListener('click', () => adminRemoveMugUser(Number(pid)));
+        row.appendChild(nm); row.appendChild(rm); gb.appendChild(row);
+      }
+    }
   }
   async function adminAddFaction(){
     const fid = parseInt(($('#admin-faction-input').value || '').trim(), 10);
@@ -2528,6 +2737,19 @@
     const data = await adminCall('adminRemoveMaster', fid ? { playerId: pid, factionId: fid } : { playerId: pid });
     if(data.ok){ adminMasters = data.masters || adminMasters; renderAdmin(); toast('Updated.', 'ok'); }
   }
+  async function adminAddMugUser(){
+    const raw = ($('#admin-mug-input').value || '').trim();
+    const mm = /\[(\d+)\]/.exec(raw); const pid = mm ? parseInt(mm[1],10) : parseInt(raw,10);
+    if(!pid){ setAdminMsg('Enter a player ID (or Name [ID]).'); return; }
+    const data = await adminCall('adminAddMugUser', { playerId: pid });
+    if(data.ok){ adminMugUsers = Array.isArray(data.mugUsers) ? data.mugUsers : adminMugUsers; renderAdmin(); $('#admin-mug-input').value=''; setAdminMsg(''); toast('Buy-Mug access granted to [' + pid + '].', 'ok'); }
+    else setAdminMsg('Could not grant access.');
+  }
+  async function adminRemoveMugUser(pid){
+    if(!confirm('Revoke Buy-Mug access for [' + pid + ']? Their ledger stays saved but the tab hides.')) return;
+    const data = await adminCall('adminRemoveMugUser', { playerId: pid });
+    if(data.ok){ adminMugUsers = Array.isArray(data.mugUsers) ? data.mugUsers : adminMugUsers; renderAdmin(); toast('Access revoked.', 'ok'); }
+  }
 
   /* ===================== Init ===================== */
   function init(){
@@ -2565,6 +2787,7 @@
     $('#tab-war').addEventListener('click', () => switchView('war'));
     $('#tab-payout').addEventListener('click', () => switchView('payout'));
     $('#tab-calc').addEventListener('click', () => switchView('calc'));
+    $('#tab-mug').addEventListener('click', () => switchView('mug'));
     $('#tab-settings').addEventListener('click', () => switchView('settings'));
     $('#settings-key-form').addEventListener('submit', e => { e.preventDefault(); updateKey($('#settings-key').value); });
     $('#settings-key-show').addEventListener('change', e => { $('#settings-key').type = e.target.checked ? 'text' : 'password'; });
@@ -2603,6 +2826,7 @@
     $('#admin').addEventListener('click', e => { if(e.target.id === 'admin') closeAdmin(); });
     $('#admin-faction-form').addEventListener('submit', e => { e.preventDefault(); adminAddFaction(); });
     $('#admin-master-form').addEventListener('submit', e => { e.preventDefault(); adminAddMaster(); });
+    $('#admin-mug-form').addEventListener('submit', e => { e.preventDefault(); adminAddMugUser(); });
 
     fetchConfig();   // pull the live whitelist (colours + any newly added factions)
 
