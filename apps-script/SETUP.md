@@ -78,6 +78,18 @@ view. Non-masters only see a roster once its master has **activated** it.
   two original factions keep their legacy sheet names (`War`, `War_SH`); any newly
   whitelisted faction gets a `War_<id>` tab auto-created on first use.
 
+## Buy-Mug calculator (🥊 Buy-Mug tab)
+
+A per-player buy-mugging savings tracker (per-item and per-trade `buy − mug`, then
+a running ledger that sums savings over time). Access is an **explicit owner-managed
+allowlist of player IDs** (`cfg_mug` Script Property) — stricter than the role
+gates: the tab is invisible to everyone and only appears for granted players (plus
+the owner). Managed in the **Admin** panel (`adminAddMugUser` / `adminRemoveMugUser`).
+Each granted player has their **own private ledger** in a `Mug_<playerId>` sheet
+(auto-created), keyed by their verified player id — nobody can read/write another's.
+Actions: `mugStatus` / `mugAddTrade` / `mugDeleteTrade` / `mugClear` (all gated on
+the allowlist).
+
 ## War payout calculator (💵 Payout tab)
 
 A per-faction ranked-war payout calculator (net pool → member/faction split →

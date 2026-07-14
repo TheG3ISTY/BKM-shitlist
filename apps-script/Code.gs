@@ -166,6 +166,11 @@ function doPost(e) {
       case 'payoutSave':      out = payMaster ? payoutSave(body, pkey)             : forbidden(); break;
       case 'payoutSetActive': out = payMaster ? payoutSetActive(!!body.active, pkey) : forbidden(); break;
       case 'payoutClear':     out = payMaster ? payoutClear(pkey)                  : forbidden(); break;
+      // ---- Buy-Mug calculator (per-player ledger; access via the allowlist) ----
+      case 'mugStatus':       out = mugStatus(member); break;
+      case 'mugAddTrade':     out = hasMugAccess(member) ? mugAddTrade(body, member)    : forbidden(); break;
+      case 'mugDeleteTrade':  out = hasMugAccess(member) ? mugDeleteTrade(body, member) : forbidden(); break;
+      case 'mugClear':        out = hasMugAccess(member) ? mugClear(member)             : forbidden(); break;
       // ---- Admin (OWNER-ONLY): live whitelist + masters management ----
       case 'adminConfig':        out = owner ? adminConfig()             : forbidden(); break;
       case 'adminAddFaction':    out = owner ? adminAddFaction(body)     : forbidden(); break;
@@ -173,6 +178,8 @@ function doPost(e) {
       case 'adminSetColor':      out = owner ? adminSetColor(body)       : forbidden(); break;
       case 'adminAddMaster':     out = owner ? adminAddMaster(body)      : forbidden(); break;
       case 'adminRemoveMaster':  out = owner ? adminRemoveMaster(body)   : forbidden(); break;
+      case 'adminAddMugUser':    out = owner ? adminAddMugUser(body)     : forbidden(); break;
+      case 'adminRemoveMugUser': out = owner ? adminRemoveMugUser(body)  : forbidden(); break;
       default:         out = { ok: false, error: 'unknown_action' };
     }
   } finally {
@@ -185,6 +192,7 @@ function doPost(e) {
   out.isMaster = master;                    // may curate the hit list
   out.isOwner = owner;
   out.warMasterOf = warMasterOf(member);    // faction war rosters this member controls
+  out.mugAccess = hasMugAccess(member);     // may use the Buy-Mug calculator
   out.factions = getWhitelist();   // keep the client's whitelist/colours fresh
   return json(out);
 }
@@ -262,7 +270,7 @@ function cacheKey(key) {
 }
 
 /* ---------- Admin actions (owner-only; enforced in doPost) ---------- */
-function adminConfig() { return { ok: true, whitelist: getWhitelist(), masters: getMasterMap() }; }
+function adminConfig() { return { ok: true, whitelist: getWhitelist(), masters: getMasterMap(), mugUsers: getMugUsers() }; }
 function adminAddFaction(body) {
   var fid = parseInt(body.factionId, 10);
   if (!fid) return { ok: false, error: 'bad_faction' };
@@ -779,6 +787,82 @@ function payoutClear(fid) {
   if (last > 1) sh.getRange(2, 1, last - 1, PAYOUT_HEADERS.length).clearContent();
   savePayoutMeta(fid, { active: false, params: defaultPayoutParams(), updatedAt: '' });
   return payoutEnvelope(fid);
+}
+
+/* ---------- Buy-Mug calculator (per-player savings ledger) ---------- */
+// Access is an explicit owner-managed allowlist of player ids (stricter than the
+// role gates). Each granted player has their OWN ledger, keyed by their verified
+// player id — never a body param, so nobody can read/write another's.
+var CFG_MUG = 'cfg_mug';
+var MUG_HEADERS = ['At', 'Note', 'BuyTotal', 'MugTotal', 'Saved'];
+function getMugUsers() {
+  var raw = PropertiesService.getScriptProperties().getProperty(CFG_MUG);
+  if (raw) { try { var a = JSON.parse(raw); if (a && a.length !== undefined) return arrNums(a); } catch (e) {} }
+  return [];
+}
+function saveMugUsers(a) { PropertiesService.getScriptProperties().setProperty(CFG_MUG, JSON.stringify(arrNums(a))); }
+function hasMugAccess(member) {
+  if (!member) return false;
+  if (Number(member.playerId) === OWNER_ID) return true;   // owner always
+  return getMugUsers().indexOf(Number(member.playerId)) !== -1;
+}
+function mugSheet(pid) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var name = 'Mug_' + Number(pid);
+  var sh = ss.getSheetByName(name);
+  if (!sh) sh = ss.insertSheet(name);
+  var fresh = sh.getLastRow() === 0;
+  ensureHeaders(sh, MUG_HEADERS);
+  if (fresh) { sh.getRange('A:A').setNumberFormat('@'); sh.getRange('B:B').setNumberFormat('@'); }
+  return sh;
+}
+function mugReadAll(pid) {
+  var sh = mugSheet(pid);
+  var last = sh.getLastRow();
+  if (last < 2) return [];
+  var rows = sh.getRange(2, 1, last - 1, MUG_HEADERS.length).getValues();
+  var out = [];
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    out.push({ at: String(r[0] || ''), note: String(r[1] || ''), buy: Number(r[2]) || 0, mug: Number(r[3]) || 0, saved: Number(r[4]) || 0 });
+  }
+  return out;
+}
+function mugEnvelope(member) {
+  var t = mugReadAll(member.playerId), total = 0;
+  for (var i = 0; i < t.length; i++) total += t[i].saved;
+  return { ok: true, access: true, trades: t, total: total };
+}
+function mugStatus(member) { return hasMugAccess(member) ? mugEnvelope(member) : { ok: true, access: false }; }
+function mugAddTrade(body, member) {
+  var buy = Number(body.buyTotal) || 0, mug = Number(body.mugTotal) || 0;
+  mugSheet(member.playerId).appendRow([nowStr(), String(body.note || ''), buy, mug, buy - mug]);
+  return mugEnvelope(member);
+}
+function mugDeleteTrade(body, member) {
+  var idx = parseInt(body.index, 10);
+  var sh = mugSheet(member.playerId);
+  if (idx >= 0) { var row = idx + 2; if (row <= sh.getLastRow()) sh.deleteRow(row); }
+  return mugEnvelope(member);
+}
+function mugClear(member) {
+  var sh = mugSheet(member.playerId);
+  var last = sh.getLastRow();
+  if (last > 1) sh.getRange(2, 1, last - 1, MUG_HEADERS.length).clearContent();
+  return mugEnvelope(member);
+}
+function adminAddMugUser(body) {
+  var pid = parseInt(body.playerId, 10);
+  if (!pid) return { ok: false, error: 'bad_player' };
+  var a = getMugUsers();
+  if (a.indexOf(pid) === -1) { a.push(pid); saveMugUsers(a); }
+  return { ok: true, mugUsers: a };
+}
+function adminRemoveMugUser(body) {
+  var pid = parseInt(body.playerId, 10) || 0;
+  var a = getMugUsers().filter(function (x) { return x !== pid; });
+  saveMugUsers(a);
+  return { ok: true, mugUsers: a };
 }
 
 function nowStr() {
