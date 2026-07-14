@@ -78,6 +78,15 @@ view. Non-masters only see a roster once its master has **activated** it.
   two original factions keep their legacy sheet names (`War`, `War_SH`); any newly
   whitelisted faction gets a `War_<id>` tab auto-created on first use.
 
+## Travel profit (✈ Travel sub-tab in the Value Calc)
+
+Joins **YATA**'s crowd-sourced foreign stock (buy cost + live quantity per country)
+with the market catalog (sell value) to show profit **per item / per trip / per
+hour**, with Travel-type and Suitcase dropdowns (capacity + travel-time). YATA
+(`yata.yt`) doesn't send CORS headers, so the browser can't read it directly — the
+`travelStock` backend action proxies it (server-side `UrlFetchApp`, cached 5 min).
+Available to any verified member.
+
 ## Buy-Mug calculator (🥊 Buy-Mug tab)
 
 A per-player buy-mugging savings tracker (per-item and per-trade `buy − mug`, then

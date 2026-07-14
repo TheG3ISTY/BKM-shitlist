@@ -171,6 +171,8 @@ function doPost(e) {
       case 'mugAddTrade':     out = hasMugAccess(member) ? mugAddTrade(body, member)    : forbidden(); break;
       case 'mugDeleteTrade':  out = hasMugAccess(member) ? mugDeleteTrade(body, member) : forbidden(); break;
       case 'mugClear':        out = hasMugAccess(member) ? mugClear(member)             : forbidden(); break;
+      // ---- Travel foreign stock (any verified member) ----
+      case 'travelStock':     out = travelStock(); break;
       // ---- Admin (OWNER-ONLY): live whitelist + masters management ----
       case 'adminConfig':        out = owner ? adminConfig()             : forbidden(); break;
       case 'adminAddFaction':    out = owner ? adminAddFaction(body)     : forbidden(); break;
@@ -863,6 +865,23 @@ function adminRemoveMugUser(body) {
   var a = getMugUsers().filter(function (x) { return x !== pid; });
   saveMugUsers(a);
   return { ok: true, mugUsers: a };
+}
+
+/* ---------- Travel foreign stock (YATA proxy) ---------- */
+// YATA (yata.yt) is the community foreign-stock database. It doesn't send CORS
+// headers, so the browser can't read it directly — we proxy it here (server-side
+// fetch, cached 5 min). Public data; any verified member may pull it.
+function travelStock() {
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get('yata_travel');
+  if (hit) { try { return { ok: true, stocks: JSON.parse(hit), cached: true }; } catch (e) {} }
+  try {
+    var resp = UrlFetchApp.fetch('https://yata.yt/api/v1/travel/export/', { muteHttpExceptions: true });
+    var data = JSON.parse(resp.getContentText());
+    var stocks = data.stocks || {};
+    try { cache.put('yata_travel', JSON.stringify(stocks), 300); } catch (e) {}   // 5 min
+    return { ok: true, stocks: stocks };
+  } catch (e) { return { ok: false, error: 'yata_fetch' }; }
 }
 
 function nowStr() {
