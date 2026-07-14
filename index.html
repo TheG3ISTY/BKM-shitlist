@@ -735,6 +735,7 @@
       <button class="tb active" id="tabInv" onclick="switchTab('inv')" type="button">🎒 My Inventory <span class="badge" id="cntI" style="display:none">0</span></button>
       <button class="tb" id="tabMarket" onclick="switchTab('market')" type="button">All Items <span class="cnt" id="cntM"></span></button>
       <button class="tb" id="tabBasket" onclick="switchTab('basket')" type="button">🛒 Selling Basket <span class="badge" id="cntB" style="display:none">0</span></button>
+      <button class="tb" id="tabTravel" onclick="switchTab('travel')" type="button">✈ Travel</button>
     </div>
 
     <div class="ctrls" id="ctrls" style="display:none">
@@ -753,6 +754,7 @@
     <div id="invView" style="display:none"></div>
     <div id="marketView"></div>
     <div id="basketView" style="display:none"></div>
+    <div id="travelView" style="display:none"></div>
     <div class="loading" id="loader" style="display:none"><div class="spinner"></div><div id="loaderTxt">Loading…</div></div>
   </div><!-- /#view-calc -->
 
@@ -864,7 +866,7 @@
   const DEFAULT_STATS_URL = 'https://ffscouter.com/api/v1/get-stats?key={KEY}&targets={IDS}';
   // Shared Google Sheet backend (Apps Script web app). Every call is verified
   // server-side against the current whitelist.
-  const SHEET_API = 'https://script.google.com/macros/s/AKfycbyi4eTbaNQT7bL2jSgLo-EarZywJc41bNgA_l2pEzHTExGsHwvjUuy3VOxhF9Mx__6swg/exec';
+  const SHEET_API = 'https://script.google.com/macros/s/AKfycbzI2a30F1rzkKZsVzIUnh0UzuE5v0riAhygqdkINPuYNk-FmgJuXFUK5U62dvgOcxu9Gg/exec';
   const CHUNK_SIZE = 200;          // FFScouter allows up to 205 IDs / request
   const CHUNK_SPACING_MS = 3500;   // spacing when chunking -> well under 20/min
   const RATE_MAX = 20;             // hard cap: 20 requests / 60s / IP (FFScouter)
@@ -2761,6 +2763,7 @@
     { const hf = lsGet(LS.hitFaction); if(hf) hitOff = new Set(hf.split(',').filter(Boolean)); }   // disabled filter buckets
     ensureWarState();
     targets = loadTargets();
+    window.bkmSheetCall = sheetCall;   // let the Value Calc (separate script) reach the backend proxy (YATA)
 
     // Gate
     $('#gate-form').addEventListener('submit', e => { e.preventDefault(); verifyKey($('#gate-key').value); });
@@ -2845,6 +2848,14 @@
   let allItems=[], invItems=[], invError='', invErrDetail='', basket=[], pct=90;
   let sortField='market_value', sortDir=-1, invSortF='total', invSortD=-1;
   let currentTab='inv', basketUid=0, calcLoaded=false;
+  // ── Travel profit ──
+  let travelStocks={}, travelLoaded=false, travelErr='';
+  let travelType='standard', suitcase='none', travelCountry='', travelStockOnly=true;
+  let travelSortF='profitHour', travelSortD=-1;
+  const TRAVEL_TIME={ mex:20, can:37, cay:57, haw:121, uni:152, swi:169, arg:189, jap:203, chi:219, uae:259, sou:311 };   // one-way minutes
+  const COUNTRY={ mex:'Mexico', can:'Canada', cay:'Cayman Is.', haw:'Hawaii', uni:'United Kingdom', swi:'Switzerland', arg:'Argentina', jap:'Japan', chi:'China', uae:'UAE', sou:'South Africa' };
+  const TRAVEL_TYPES=[ {k:'standard',label:'Standard',cap:10,mult:1.00}, {k:'airstrip',label:'PI Airstrip (−30%)',cap:15,mult:0.70}, {k:'wlt',label:'WLT (−30%)',cap:15,mult:0.70}, {k:'business',label:'Business Class (−70%)',cap:15,mult:0.30} ];
+  const SUITCASES=[ {k:'none',label:'No suitcase',add:0}, {k:'s',label:'Small (+1)',add:1}, {k:'m',label:'Medium (+2)',add:2}, {k:'l',label:'Large (+3)',add:3} ];
   const $=id=>document.getElementById(id);
   function showErr(m){const e=$('err');if(!e)return;e.textContent=m;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),8000);}
   function fmt(n){if(!n)return'—';if(n>=1e9)return'$'+(n/1e9).toFixed(2)+'B';if(n>=1e6)return'$'+(n/1e6).toFixed(2)+'M';if(n>=1e3)return'$'+(n/1e3).toFixed(1)+'K';return'$'+n.toLocaleString();}
@@ -2971,18 +2982,22 @@
     $('tabInv').classList.toggle('active',t==='inv');
     $('tabMarket').classList.toggle('active',t==='market');
     $('tabBasket').classList.toggle('active',t==='basket');
+    $('tabTravel').classList.toggle('active',t==='travel');
     $('invView').style.display=t==='inv'?'block':'none';
     $('marketView').style.display=t==='market'?'block':'none';
     $('basketView').style.display=t==='basket'?'block':'none';
+    $('travelView').style.display=t==='travel'?'block':'none';
+    $('ctrls').style.display=t==='travel'?'none':'flex';   // travel has its own controls
     $('catS').style.display=t==='market'?'':'none';
-    $('searchWrap').style.display=t==='basket'?'none':'block';
+    $('searchWrap').style.display=(t==='basket'||t==='travel')?'none':'block';
     $('chips').style.display=t==='market'?'flex':'none';
+    if(t==='travel' && !travelLoaded) loadTravel();
     render();
   };
   window.onPct=function(){ pct=parseInt($('pctS').value); $('pctV').textContent=pct+'%'; render(); };
   window.doSort=function(field){ if(sortField===field)sortDir*=-1; else{ sortField=field; sortDir=(field==='name'||field==='type')?1:-1; } render(); };
   window.doSortInv=function(field){ if(invSortF===field)invSortD*=-1; else{ invSortF=field; invSortD=(field==='name'||field==='type')?1:-1; } render(); };
-  function render(){ if(currentTab==='inv')renderInv(); else if(currentTab==='market')renderMarket(); renderBasket(); }
+  function render(){ if(currentTab==='inv')renderInv(); else if(currentTab==='market')renderMarket(); else if(currentTab==='travel')renderTravel(); renderBasket(); }
   window.render=render;   // referenced by inline oninput/onchange on the search + category controls
 
   function renderInv(){
@@ -3090,6 +3105,92 @@
       '<div class="bf-stat bf-saved"><div class="bf-label">Buyer Saves</div><div class="bf-val">-'+fmtExact(totalSaved)+'</div></div></div>'+
       '<div class="bf-stat bf-total"><div class="bf-label">Your Take at '+pct+'%</div><div class="bf-val">'+fmtExact(totalSell)+'</div></div></div></div>';
     $('basketView').innerHTML=html;
+  }
+
+  /* ── Travel profit (YATA foreign stock via the backend proxy) ── */
+  const tmoney=n=>{ const s=n<0?'-':''; const a=Math.abs(n); let v; if(a>=1e9)v=(a/1e9).toFixed(2)+'B'; else if(a>=1e6)v=(a/1e6).toFixed(2)+'M'; else if(a>=1e3)v=(a/1e3).toFixed(1)+'K'; else v=Math.round(a).toLocaleString(); return s+'$'+v; };
+  async function loadTravel(){
+    travelErr='';
+    $('travelView').innerHTML='<div class="loading"><div class="spinner"></div><div>Loading foreign stock…</div></div>';
+    try{
+      const d = window.bkmSheetCall ? await window.bkmSheetCall('travelStock') : null;
+      if(d && d.ok && d.stocks){ travelStocks=d.stocks; travelLoaded=true; }
+      else travelErr = (d && d.error==='yata_fetch') ? 'YATA (the foreign-stock source) didn’t respond — try Reload in a moment.' : 'Couldn’t load foreign stock.';
+    }catch(e){ travelErr='Foreign stock request failed.'; }
+    renderTravel();
+  }
+  function buildTravelRows(){
+    const priceOf={}; allItems.forEach(i=>priceOf[String(i.id)]=i.market_value);
+    const tt=TRAVEL_TYPES.find(t=>t.k===travelType)||TRAVEL_TYPES[0];
+    const cap=tt.cap+((SUITCASES.find(s=>s.k===suitcase)||SUITCASES[0]).add);
+    const rows=[];
+    for(const cc in travelStocks){
+      const c=travelStocks[cc]; const items=(c&&c.stocks)||[];
+      const oneway=TRAVEL_TIME[cc]||0; const rtHours=(2*oneway*tt.mult)/60;
+      items.forEach(it=>{
+        const sell=priceOf[String(it.id)]||0, buy=Number(it.cost)||0, pItem=sell-buy, pTrip=pItem*cap;
+        rows.push({cc, country:COUNTRY[cc]||cc, id:String(it.id), name:it.name||'?', buy, sell, stock:Number(it.quantity)||0, profitItem:pItem, profitTrip:pTrip, profitHour:(rtHours>0?pTrip/rtHours:0)});
+      });
+    }
+    return {rows, cap};
+  }
+  function renderTravel(){
+    const box=$('travelView'); if(!box) return;
+    if(travelErr){ box.innerHTML='<div class="empty"><div class="big">✈</div>'+esc(travelErr)+'</div>'; return; }
+    if(!travelLoaded){ box.innerHTML='<div class="loading"><div class="spinner"></div><div>Loading foreign stock…</div></div>'; return; }
+    box.innerHTML='';
+    box.appendChild(buildTravelControls());
+    const out=document.createElement('div'); out.id='travel-out'; box.appendChild(out);
+    refreshTravelOut();
+  }
+  function buildTravelControls(){
+    const bar=document.createElement('div'); bar.className='ctrls'; bar.style.display='flex';
+    const mkSel=(opts,val,onch)=>{ const s=document.createElement('select'); s.className='cs'; opts.forEach(o=>{ const op=document.createElement('option'); op.value=o.k; op.textContent=o.label; if(o.k===val)op.selected=true; s.appendChild(op); }); s.addEventListener('change',()=>onch(s.value)); return s; };
+    const grp=(label,el)=>{ const g=document.createElement('div'); g.className='cg'; const l=document.createElement('span'); l.className='lbl'; l.textContent=label; g.appendChild(l); g.appendChild(el); return g; };
+    bar.appendChild(grp('Travel', mkSel(TRAVEL_TYPES.map(t=>({k:t.k,label:t.label})), travelType, v=>{ travelType=v; refreshTravelOut(); })));
+    bar.appendChild(grp('Suitcase', mkSel(SUITCASES.map(s=>({k:s.k,label:s.label})), suitcase, v=>{ suitcase=v; refreshTravelOut(); })));
+    const countries=[{k:'',label:'All countries'}].concat(Object.keys(TRAVEL_TIME).sort((a,b)=>TRAVEL_TIME[a]-TRAVEL_TIME[b]).map(cc=>({k:cc,label:COUNTRY[cc]||cc})));
+    bar.appendChild(grp('Country', mkSel(countries, travelCountry, v=>{ travelCountry=v; refreshTravelOut(); })));
+    const lbl=document.createElement('label'); lbl.className='cg'; lbl.style.cursor='pointer'; const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=travelStockOnly; cb.addEventListener('change',()=>{ travelStockOnly=cb.checked; refreshTravelOut(); }); lbl.appendChild(cb); lbl.appendChild(document.createTextNode(' In stock only')); bar.appendChild(lbl);
+    const rl=document.createElement('button'); rl.className='btn br'; rl.textContent='↻ Reload stock'; rl.addEventListener('click',()=>{ travelLoaded=false; loadTravel(); }); bar.appendChild(rl);
+    return bar;
+  }
+  window.travelSort=function(f){ if(travelSortF===f)travelSortD*=-1; else{ travelSortF=f; travelSortD=(f==='name'||f==='country')?1:-1; } refreshTravelOut(); };
+  function refreshTravelOut(){
+    const out=$('travel-out'); if(!out) return;
+    const {rows, cap}=buildTravelRows();
+    let list=rows.filter(r=> (!travelCountry||r.cc===travelCountry) && (!travelStockOnly||r.stock>0) );
+    list.sort((a,b)=>{ let va=a[travelSortF],vb=b[travelSortF]; if(typeof va==='string'){va=va.toLowerCase();vb=(vb||'').toLowerCase();} return va<vb?-travelSortD:va>vb?travelSortD:0; });
+    const best=list.reduce((m,r)=> r.profitHour>((m&&m.profitHour)||-Infinity)?r:m, null);
+    const si=f=>travelSortF===f?'<span class="arr">'+(travelSortD===1?'▲':'▼')+'</span>':'';
+    const sc=f=>travelSortF===f?'sorted':'';
+    const pc=v=> v>0?'ps':(v<0?'pd':'pm');
+    let html='<div class="chips" style="display:flex">'+
+      '<div class="chip"><span class="cl">Capacity</span><span class="cv cg2">'+cap+' items</span></div>'+
+      '<div class="chip"><span class="cl">Best $/hr</span><span class="cv cgl">'+(best?(esc(best.name)+' · '+tmoney(best.profitHour)):'—')+'</span></div>'+
+      '<div class="chip"><span class="cl">Showing</span><span class="cv cr">'+list.length+'</span></div></div>';
+    html+='<div class="tw"><div class="ts"><table><thead><tr>'+
+      '<th class="'+sc('country')+'" onclick="travelSort(\'country\')">Country'+si('country')+'</th>'+
+      '<th class="'+sc('name')+'" onclick="travelSort(\'name\')">Item'+si('name')+'</th>'+
+      '<th class="'+sc('buy')+'" onclick="travelSort(\'buy\')">Buy'+si('buy')+'</th>'+
+      '<th class="'+sc('sell')+'" onclick="travelSort(\'sell\')">Market'+si('sell')+'</th>'+
+      '<th class="'+sc('profitItem')+'" onclick="travelSort(\'profitItem\')">Profit/item'+si('profitItem')+'</th>'+
+      '<th class="'+sc('stock')+'" onclick="travelSort(\'stock\')">Stock'+si('stock')+'</th>'+
+      '<th class="'+sc('profitTrip')+'" onclick="travelSort(\'profitTrip\')">Profit/trip'+si('profitTrip')+'</th>'+
+      '<th class="'+sc('profitHour')+'" onclick="travelSort(\'profitHour\')">Profit/hr'+si('profitHour')+'</th>'+
+      '</tr></thead><tbody>'+list.slice(0,400).map(r=>
+        '<tr>'+
+        '<td><span class="itp">'+esc(r.country)+'</span></td>'+
+        '<td><div class="ic"><img class="iimg" src="https://www.torn.com/images/items/'+r.id+'/large.png" alt="" loading="lazy" onerror="this.style.display=\'none\'"><span class="inm">'+esc(r.name)+'</span></div></td>'+
+        '<td class="pm">'+tmoney(r.buy)+'</td>'+
+        '<td class="pm">'+(r.sell?tmoney(r.sell):'—')+'</td>'+
+        '<td class="'+pc(r.profitItem)+'">'+tmoney(r.profitItem)+'</td>'+
+        '<td class="pc">'+fmtN(r.stock)+'</td>'+
+        '<td class="'+pc(r.profitTrip)+'">'+tmoney(r.profitTrip)+'</td>'+
+        '<td class="'+pc(r.profitHour)+'" style="font-weight:700">'+tmoney(r.profitHour)+'</td>'+
+        '</tr>'
+      ).join('')+'</tbody></table></div></div>'+(list.length===0?'<div class="empty"><div class="big">✈</div>No items match — try turning off “in stock only”, or ↻ Reload.</div>':'');
+    out.innerHTML=html;
   }
 })();
 </script>
